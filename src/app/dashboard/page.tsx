@@ -406,9 +406,21 @@ export default function DashboardPage() {
               {inicioData.razonSocial}
             </span>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-slate-400">Fecha Corte Operativo</p>
-            <p className="text-sm font-bold text-slate-700">{inicioData.fechaCorte}</p>
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <p className="text-xs text-slate-400">Fecha Corte Operativo</p>
+              <p className="text-sm font-bold text-slate-700">{inicioData.fechaCorte}</p>
+            </div>
+            <div className="border-l border-slate-200 h-8"></div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-xs uppercase tracking-wider transition-all duration-200 active:scale-95 shadow-sm shadow-red-500/5"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Cerrar Sesión
+            </button>
           </div>
         </header>
 
