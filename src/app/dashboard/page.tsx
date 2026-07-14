@@ -781,34 +781,42 @@ export default function DashboardPage() {
                         <table className="w-full text-sm text-left text-slate-600">
                           <thead className="bg-slate-50 text-slate-700 uppercase text-xs font-semibold border-b border-slate-200">
                             <tr>
-                              <th className="px-6 py-4">No.</th>
-                              <th className="px-6 py-4">Identificación</th>
-                              <th className="px-6 py-4">Acreedor</th>
-                              <th className="px-6 py-4">Cantón</th>
-                              <th className="px-6 py-4 text-center">Vinculado</th>
-                              <th className="px-6 py-4 text-right">Saldo Total ($)</th>
-                              <th className="px-6 py-4 text-center">Acciones</th>
+                              <th className="px-4 py-4">No.</th>
+                              <th className="px-4 py-4">Tipo Persona</th>
+                              <th className="px-4 py-4">Validador ID</th>
+                              <th className="px-4 py-4 text-center">Tipo ID</th>
+                              <th className="px-4 py-4">ID Acreedor</th>
+                              <th className="px-4 py-4">Acreedor</th>
+                              <th className="px-4 py-4">Cantón Agencia</th>
+                              <th className="px-4 py-4 text-center">Vinculado</th>
+                              <th className="px-4 py-4">Tipo Vinculado</th>
+                              <th className="px-4 py-4 text-right">Saldo Total ($)</th>
+                              <th className="px-4 py-4 text-center">Acciones</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
                             {depositos.map((dep) => (
                               <tr key={dep.id} className="hover:bg-slate-50/50">
-                                <td className="px-6 py-4 font-mono text-xs">{dep.numeroRegistro}</td>
-                                <td className="px-6 py-4 font-mono text-xs text-slate-500">{dep.idAcreedor || "N/A"}</td>
-                                <td className="px-6 py-4 font-semibold text-slate-900">{dep.nombreAcreedor}</td>
-                                <td className="px-6 py-4 text-slate-500">{dep.agenciaCanton}</td>
-                                <td className="px-6 py-4 text-center">
+                                <td className="px-4 py-4 font-mono text-xs">{dep.numeroRegistro}</td>
+                                <td className="px-4 py-4 text-xs">{dep.tipoPersona}</td>
+                                <td className="px-4 py-4 text-xs font-semibold">{dep.validadorId}</td>
+                                <td className="px-4 py-4 text-center font-mono text-xs">{dep.tipoIdAcreedor || "-"}</td>
+                                <td className="px-4 py-4 font-mono text-xs text-slate-500">{dep.idAcreedor || "-"}</td>
+                                <td className="px-4 py-4 font-semibold text-slate-900">{dep.nombreAcreedor}</td>
+                                <td className="px-4 py-4 text-slate-500 text-xs">{dep.agenciaCanton}</td>
+                                <td className="px-4 py-4 text-center">
                                   {dep.vinculado === "SI" ? (
                                     <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">SÍ</span>
                                   ) : (
                                     <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">NO</span>
                                   )}
                                 </td>
-                                <td className="px-6 py-4 text-right font-bold text-slate-900">
+                                <td className="px-4 py-4 text-slate-500 text-xs">{dep.tipoVinculado || "-"}</td>
+                                <td className="px-4 py-4 text-right font-bold text-slate-900">
                                   {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(dep.saldoTotal)}
                                 </td>
-                                <td className="px-6 py-4 text-center">
-                                  <div className="flex justify-center gap-2">
+                                <td className="px-4 py-4 text-center">
+                                  <div className="flex justify-center gap-2 text-xs">
                                     <button onClick={() => setEditingDeposito(dep)} className="p-1 hover:bg-slate-100 rounded text-slate-600">
                                       Editar
                                     </button>
@@ -871,28 +879,34 @@ export default function DashboardPage() {
                         <table className="w-full text-sm text-left text-slate-600">
                           <thead className="bg-slate-50 text-slate-700 uppercase text-xs font-semibold border-b border-slate-200">
                             <tr>
-                              <th className="px-6 py-4">Código Socio</th>
-                              <th className="px-6 py-4">Identificación</th>
-                              <th className="px-6 py-4">Socio / Deudor</th>
-                              <th className="px-6 py-4">Operación</th>
-                              <th className="px-6 py-4">Relación</th>
-                              <th className="px-6 py-4 text-right">Saldo ($)</th>
-                              <th className="px-6 py-4 text-center">Acciones</th>
+                              <th className="px-4 py-4">Código Socio</th>
+                              <th className="px-4 py-4 text-center">Tipo ID</th>
+                              <th className="px-4 py-4">Validador ID</th>
+                              <th className="px-4 py-4">No. Operación</th>
+                              <th className="px-4 py-4">ID Cliente</th>
+                              <th className="px-4 py-4">Relación</th>
+                              <th className="px-4 py-4">Socio / Deudor</th>
+                              <th className="px-4 py-4">Estado Civil</th>
+                              <th className="px-4 py-4 text-right">Saldo Cartera ($)</th>
+                              <th className="px-4 py-4 text-center">Acciones</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
                             {cartera.map((cart) => (
                               <tr key={cart.id} className="hover:bg-slate-50/50">
-                                <td className="px-6 py-4 font-mono text-xs">{cart.codigoSocio}</td>
-                                <td className="px-6 py-4 font-mono text-xs text-slate-500">{cart.idCliente}</td>
-                                <td className="px-6 py-4 font-semibold text-slate-900">{cart.nombreSocio}</td>
-                                <td className="px-6 py-4 font-mono text-xs">{cart.numeroOperacion}</td>
-                                <td className="px-6 py-4 text-xs font-bold text-slate-500">{cart.relacion}</td>
-                                <td className="px-6 py-4 text-right font-bold text-slate-900">
+                                <td className="px-4 py-4 font-mono text-xs">{cart.codigoSocio}</td>
+                                <td className="px-4 py-4 text-center font-mono text-xs">{cart.tipoIdSocio}</td>
+                                <td className="px-4 py-4 text-xs font-semibold">{cart.validadorIdSocio}</td>
+                                <td className="px-4 py-4 font-mono text-xs">{cart.numeroOperacion}</td>
+                                <td className="px-4 py-4 font-mono text-xs text-slate-500">{cart.idCliente}</td>
+                                <td className="px-4 py-4 text-xs font-bold text-slate-500">{cart.relacion}</td>
+                                <td className="px-4 py-4 font-semibold text-slate-900">{cart.nombreSocio}</td>
+                                <td className="px-4 py-4 text-xs">{cart.estadoCivil}</td>
+                                <td className="px-4 py-4 text-right font-bold text-slate-900">
                                   {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cart.saldoFecha)}
                                 </td>
-                                <td className="px-6 py-4 text-center">
-                                  <div className="flex justify-center gap-2">
+                                <td className="px-4 py-4 text-center">
+                                  <div className="flex justify-center gap-2 text-xs">
                                     <button onClick={() => setEditingCartera(cart)} className="p-1 hover:bg-slate-100 rounded text-slate-600">
                                       Editar
                                     </button>
@@ -964,38 +978,40 @@ export default function DashboardPage() {
                         <table className="w-full text-sm text-left text-slate-600">
                           <thead className="bg-slate-50 text-slate-700 uppercase text-xs font-semibold tracking-wider border-b border-slate-200/60">
                             <tr>
-                              <th className="px-6 py-4">Tipo</th>
-                              <th className="px-6 py-4">ID / Placa</th>
-                              <th className="px-6 py-4">Descripción</th>
-                              <th className="px-6 py-4">Cantón</th>
-                              <th className="px-6 py-4 text-right">Saldo Libros ($)</th>
-                              <th className="px-6 py-4 text-right">Valor Avalúo ($)</th>
-                              <th className="px-6 py-4 text-center">Físico</th>
-                              <th className="px-6 py-4 text-center">Acciones</th>
+                              <th className="px-4 py-4">Tipo de Bien</th>
+                              <th className="px-4 py-4">Descripción</th>
+                              <th className="px-4 py-4 text-center">Existencia Física</th>
+                              <th className="px-4 py-4">Nº Identificación</th>
+                              <th className="px-4 py-4">Ubicación (Cantón)</th>
+                              <th className="px-4 py-4 text-right">Saldo en Libros ($)</th>
+                              <th className="px-4 py-4 text-right">Valor Avalúo Perito ($)</th>
+                              <th className="px-4 py-4 text-center">Disponibilidad</th>
+                              <th className="px-4 py-4 text-center">Acciones</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
                             {bienes.map((bien) => (
                               <tr key={bien.id} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="px-6 py-4 font-semibold text-slate-900">{bien.tipoBien}</td>
-                                <td className="px-6 py-4 text-xs font-mono text-slate-500">{bien.numeroIdentificacion}</td>
-                                <td className="px-6 py-4 max-w-xs truncate text-slate-600">{bien.descripcion}</td>
-                                <td className="px-6 py-4 text-slate-500">{bien.ubicacionCanton}</td>
-                                <td className="px-6 py-4 text-right font-medium text-slate-800">
-                                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(bien.saldoLibros)}
-                                </td>
-                                <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(bien.valorAvaluo)}
-                                </td>
-                                <td className="px-6 py-4 text-center">
+                                <td className="px-4 py-4 font-semibold text-slate-900">{bien.tipoBien}</td>
+                                <td className="px-4 py-4 text-slate-600 max-w-xs truncate">{bien.descripcion}</td>
+                                <td className="px-4 py-4 text-center">
                                   {bien.existenciaFisica ? (
-                                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200/40">Sí</span>
+                                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200/40">SI</span>
                                   ) : (
-                                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200/40">No</span>
+                                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200/40">NO</span>
                                   )}
                                 </td>
-                                <td className="px-6 py-4 text-center">
-                                  <div className="flex items-center justify-center gap-2">
+                                <td className="px-4 py-4 text-xs font-mono text-slate-500">{bien.numeroIdentificacion}</td>
+                                <td className="px-4 py-4 text-slate-500 text-xs">{bien.ubicacionCanton}</td>
+                                <td className="px-4 py-4 text-right font-medium text-slate-800">
+                                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(bien.saldoLibros)}
+                                </td>
+                                <td className="px-4 py-4 text-right font-bold text-slate-900">
+                                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(bien.valorAvaluo)}
+                                </td>
+                                <td className="px-4 py-4 text-center text-xs font-bold text-slate-600">{bien.disponibilidad}</td>
+                                <td className="px-4 py-4 text-center">
+                                  <div className="flex items-center justify-center gap-2 text-xs">
                                     <button onClick={() => setEditingBien(bien)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors">
                                       Editar
                                     </button>
