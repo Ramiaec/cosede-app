@@ -8,6 +8,7 @@ import ReadOnlyBalanceTable, { BalanceItem } from "../../components/ui/ReadOnlyB
 import InicioForm, { InicioData } from "../../components/forms/InicioForm";
 import DepositoForm, { DepositoData } from "../../components/forms/DepositoForm";
 import CarteraForm, { CarteraData } from "../../components/forms/CarteraForm";
+import * as XLSX from "xlsx";
 
 // Initial Mock Assets (BIENES)
 const INITIAL_BIENES: BienData[] = [
@@ -141,6 +142,7 @@ export default function DashboardPage() {
   const [bienes, setBienes] = useState<BienData[]>(INITIAL_BIENES);
   const [depositos, setDepositos] = useState<DepositoData[]>(INITIAL_DEPOSITOS);
   const [cartera, setCartera] = useState<CarteraData[]>(INITIAL_CARTERA);
+  const [balances, setBalances] = useState<BalanceItem[]>(INITIAL_BALANCES);
 
   // Dynamic state for general configurations (INICIO) which inherits from user session
   const [inicioData, setInicioData] = useState<InicioData>({
@@ -186,10 +188,21 @@ export default function DashboardPage() {
   const [showAddCartera, setShowAddCartera] = useState(false);
   const [editingCartera, setEditingCartera] = useState<CarteraData | null>(null);
 
-  // Excel states
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
+  // Excel states per category
+  const [fileBienes, setFileBienes] = useState<File | null>(null);
+  const [fileBalances, setFileBalances] = useState<File | null>(null);
+  const [fileDepositos, setFileDepositos] = useState<File | null>(null);
+  const [fileCartera, setFileCartera] = useState<File | null>(null);
+
+  const [loadingBienes, setLoadingBienes] = useState(false);
+  const [loadingBalances, setLoadingBalances] = useState(false);
+  const [loadingDepositos, setLoadingDepositos] = useState(false);
+  const [loadingCartera, setLoadingCartera] = useState(false);
+
+  const [successBienes, setSuccessBienes] = useState(false);
+  const [successBalances, setSuccessBalances] = useState(false);
+  const [successDepositos, setSuccessDepositos] = useState(false);
+  const [successCartera, setSuccessCartera] = useState(false);
 
   if (authLoading || !user) {
     return (
@@ -211,6 +224,9 @@ export default function DashboardPage() {
 
   const totalDepositosSaldos = depositos.reduce((acc, curr) => acc + curr.saldoTotal, 0);
   const totalCarteraSaldos = cartera.reduce((acc, curr) => acc + curr.saldoFecha, 0);
+  
+  // Total Activos from dynamic balances
+  const totalActivosLibros = balances.find((b) => b.codigoCuenta === "1")?.saldoMes || 0;
 
   // Bien CRUD
   const handleAddBien = (newBien: BienData) => {
@@ -267,6 +283,165 @@ export default function DashboardPage() {
     router.push("/");
   };
 
+  // Excel parsing functions
+  const handleUploadBienes = () => {
+    if (!fileBienes) return;
+    setLoadingBienes(true);
+    setSuccessBienes(false);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+        const mapped = rows.map((r: any, idx: number) => ({
+          id: idx + 1,
+          tipoBien: r["TIPO DE BIEN"] || "Otro",
+          descripcion: r["DESCRIPCION DEL BIEN"] || "",
+          existenciaFisica: String(r["EXISTENCIA FISICA"]).toUpperCase() === "SI" || String(r["EXISTENCIA FISICA"]).toUpperCase() === "SÍ",
+          numeroIdentificacion: String(r["Nº DE IDENTIFICACION DEL BIEN"] || r["N_ DE IDENTIFICACION DEL BIEN"] || ""),
+          ubicacionCanton: r["UBICACION ACTUAL DEL BIEN (CANTÓN)"] || r["UBICACION ACTUAL DEL BIEN (CANTON)"] || "",
+          saldoLibros: parseFloat(r["SALDO EN LIBROS"]) || 0,
+          valorAvaluo: parseFloat(r["VALOR AVALUO PERITO"]) || 0,
+          disponibilidad: r["DISPONIBILIDAD DEL BIEN"] || "Disponible",
+        }));
+
+        setBienes(mapped);
+        setSuccessBienes(true);
+        setFileBienes(null);
+      } catch (err) {
+        alert("Error al parsear la plantilla de BIENES. Verifique el formato.");
+      } finally {
+        setLoadingBienes(false);
+      }
+    };
+    reader.readAsArrayBuffer(fileBienes);
+  };
+
+  const handleUploadBalances = () => {
+    if (!fileBalances) return;
+    setLoadingBalances(true);
+    setSuccessBalances(false);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+        const mapped = rows.map((r: any, idx: number) => ({
+          id: idx + 1,
+          nivel: parseInt(r["NIVEL"]) || 1,
+          codigoCuenta: String(r["CODIGO CUENTA"] || r["CODIGO_CUENTA"] || ""),
+          nombreCuenta: r["NOMBRE CUENTA"] || r["NOMBRE_CUENTA"] || "",
+          saldoMes: parseFloat(r["SALDO MES"] || r["SALDO_MES"]) || 0,
+          fechaRegistro: String(r["FECHA REGISTRO"] || r["FECHA_REGISTRO"] || ""),
+        }));
+
+        setBalances(mapped);
+        setSuccessBalances(true);
+        setFileBalances(null);
+      } catch (err) {
+        alert("Error al parsear la plantilla de BALANCES. Verifique el formato.");
+      } finally {
+        setLoadingBalances(false);
+      }
+    };
+    reader.readAsArrayBuffer(fileBalances);
+  };
+
+  const handleUploadDepositos = () => {
+    if (!fileDepositos) return;
+    setLoadingDepositos(true);
+    setSuccessDepositos(false);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+        const mapped = rows.map((r: any, idx: number) => ({
+          id: idx + 1,
+          numeroRegistro: parseInt(r["No."]) || idx + 1,
+          tipoPersona: r["TIPO PERSONA"] || "Natural",
+          validadorId: r["VALIDADOR ID DEPOSITANTE ACREEDOR"] || "VALIDO",
+          tipoIdAcreedor: r["TIPO ID DEPOSITANTE ACREEDOR"] || "C",
+          idAcreedor: String(r["ID DEPOSITANTE ACREEDOR"] || ""),
+          nombreAcreedor: r["APELLIDOS Y NOMBRES ACREEDOR"] || "",
+          agenciaCanton: r["AGENCIA COAC EN LIQUIDACION (CANTON)"] || "",
+          vinculado: r["VINCULADO"] || "NO",
+          tipoVinculado: r["TIPO VINCULADO"] || "",
+          saldoTotal: parseFloat(r["SALDO TOTAL"]) || 0,
+        }));
+
+        setDepositos(mapped);
+        setSuccessDepositos(true);
+        setFileDepositos(null);
+      } catch (err) {
+        alert("Error al parsear la plantilla de DEPOSITOS. Verifique el formato.");
+      } finally {
+        setLoadingDepositos(false);
+      }
+    };
+    reader.readAsArrayBuffer(fileDepositos);
+  };
+
+  const handleUploadCartera = () => {
+    if (!fileCartera) return;
+    setLoadingCartera(true);
+    setSuccessCartera(false);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+        const mapped = rows.map((r: any, idx: number) => ({
+          id: idx + 1,
+          codigoSocio: r["CODIGO SOCIO"] || "",
+          tipoIdSocio: r["TIPO ID SOCIO"] || "C",
+          validadorIdSocio: r["VALIDADOR ID SOCIO"] || "VALIDO",
+          numeroOperacion: r["NUMERO DE OPERACION"] || "",
+          idCliente: String(r["ID CLIENTE"] || ""),
+          relacion: r["RELACION"] || "DEUDOR",
+          nombreSocio: r["APELLIDOS Y NOMBRES SOCIO"] || "",
+          estadoCivil: r["ESTADO CIVIL"] || "SOLTERO(A)",
+          saldoFecha: parseFloat(r["SALDO CARTERA"]) || 0,
+        }));
+
+        setCartera(mapped);
+        setSuccessCartera(true);
+        setFileCartera(null);
+      } catch (err) {
+        alert("Error al parsear la plantilla de CARTERA. Verifique el formato.");
+      } finally {
+        setLoadingCartera(false);
+      }
+    };
+    reader.readAsArrayBuffer(fileCartera);
+  };
+
+  const handleClearAll = () => {
+    if (confirm("¿Está seguro de que desea limpiar todas las bases de datos (Bienes, Depósitos, Cartera, Balances)? Se borrarán todos los registros cargados de forma permanente.")) {
+      setBienes([]);
+      setDepositos([]);
+      setCartera([]);
+      setBalances([]);
+      setSuccessBienes(false);
+      setSuccessBalances(false);
+      setSuccessDepositos(false);
+      setSuccessCartera(false);
+      alert("Todas las bases de datos han sido limpiadas y reestablecidas.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800 font-sans">
       {/* Sidebar Navigation */}
@@ -284,7 +459,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Navigation items */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5">
+        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto max-h-[calc(100vh-220px)]">
           {/* INICIO */}
           <button
             onClick={() => setActiveTab("inicio")}
@@ -456,7 +631,7 @@ export default function DashboardPage() {
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Activos en Libros</h4>
                   <div className="mt-4">
                     <span className="text-2xl font-black text-slate-900">
-                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(INITIAL_BALANCES[0].saldoMes)}
+                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totalActivosLibros)}
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-slate-400">Balance contable consolidado</p>
@@ -602,49 +777,55 @@ export default function DashboardPage() {
 
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left text-slate-600">
-                        <thead className="bg-slate-50 text-slate-700 uppercase text-xs font-semibold border-b border-slate-200">
-                          <tr>
-                            <th className="px-6 py-4">No.</th>
-                            <th className="px-6 py-4">Identificación</th>
-                            <th className="px-6 py-4">Acreedor</th>
-                            <th className="px-6 py-4">Cantón</th>
-                            <th className="px-6 py-4 text-center">Vinculado</th>
-                            <th className="px-6 py-4 text-right">Saldo Total ($)</th>
-                            <th className="px-6 py-4 text-center">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {depositos.map((dep) => (
-                            <tr key={dep.id} className="hover:bg-slate-50/50">
-                              <td className="px-6 py-4 font-mono text-xs">{dep.numeroRegistro}</td>
-                              <td className="px-6 py-4 font-mono text-xs text-slate-500">{dep.idAcreedor || "N/A"}</td>
-                              <td className="px-6 py-4 font-semibold text-slate-900">{dep.nombreAcreedor}</td>
-                              <td className="px-6 py-4 text-slate-500">{dep.agenciaCanton}</td>
-                              <td className="px-6 py-4 text-center">
-                                {dep.vinculado === "SI" ? (
-                                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">SÍ</span>
-                                ) : (
-                                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">NO</span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(dep.saldoTotal)}
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <div className="flex justify-center gap-2">
-                                  <button onClick={() => setEditingDeposito(dep)} className="p-1 hover:bg-slate-100 rounded text-slate-600">
-                                    Editar
-                                  </button>
-                                  <button onClick={() => dep.id && handleDeleteDeposito(dep.id)} className="p-1 hover:bg-red-50 rounded text-red-600">
-                                    Eliminar
-                                  </button>
-                                </div>
-                              </td>
+                      {depositos.length > 0 ? (
+                        <table className="w-full text-sm text-left text-slate-600">
+                          <thead className="bg-slate-50 text-slate-700 uppercase text-xs font-semibold border-b border-slate-200">
+                            <tr>
+                              <th className="px-6 py-4">No.</th>
+                              <th className="px-6 py-4">Identificación</th>
+                              <th className="px-6 py-4">Acreedor</th>
+                              <th className="px-6 py-4">Cantón</th>
+                              <th className="px-6 py-4 text-center">Vinculado</th>
+                              <th className="px-6 py-4 text-right">Saldo Total ($)</th>
+                              <th className="px-6 py-4 text-center">Acciones</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {depositos.map((dep) => (
+                              <tr key={dep.id} className="hover:bg-slate-50/50">
+                                <td className="px-6 py-4 font-mono text-xs">{dep.numeroRegistro}</td>
+                                <td className="px-6 py-4 font-mono text-xs text-slate-500">{dep.idAcreedor || "N/A"}</td>
+                                <td className="px-6 py-4 font-semibold text-slate-900">{dep.nombreAcreedor}</td>
+                                <td className="px-6 py-4 text-slate-500">{dep.agenciaCanton}</td>
+                                <td className="px-6 py-4 text-center">
+                                  {dep.vinculado === "SI" ? (
+                                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">SÍ</span>
+                                  ) : (
+                                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">NO</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-right font-bold text-slate-900">
+                                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(dep.saldoTotal)}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <div className="flex justify-center gap-2">
+                                    <button onClick={() => setEditingDeposito(dep)} className="p-1 hover:bg-slate-100 rounded text-slate-600">
+                                      Editar
+                                    </button>
+                                    <button onClick={() => dep.id && handleDeleteDeposito(dep.id)} className="p-1 hover:bg-red-50 rounded text-red-600">
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div className="p-8 text-center text-slate-400 font-semibold text-sm">
+                          No hay registros de depósitos. Importe una base de datos o agregue uno manualmente.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -686,43 +867,49 @@ export default function DashboardPage() {
 
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left text-slate-600">
-                        <thead className="bg-slate-50 text-slate-700 uppercase text-xs font-semibold border-b border-slate-200">
-                          <tr>
-                            <th className="px-6 py-4">Código Socio</th>
-                            <th className="px-6 py-4">Identificación</th>
-                            <th className="px-6 py-4">Socio / Deudor</th>
-                            <th className="px-6 py-4">Operación</th>
-                            <th className="px-6 py-4">Relación</th>
-                            <th className="px-6 py-4 text-right">Saldo ($)</th>
-                            <th className="px-6 py-4 text-center">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {cartera.map((cart) => (
-                            <tr key={cart.id} className="hover:bg-slate-50/50">
-                              <td className="px-6 py-4 font-mono text-xs">{cart.codigoSocio}</td>
-                              <td className="px-6 py-4 font-mono text-xs text-slate-500">{cart.idCliente}</td>
-                              <td className="px-6 py-4 font-semibold text-slate-900">{cart.nombreSocio}</td>
-                              <td className="px-6 py-4 font-mono text-xs">{cart.numeroOperacion}</td>
-                              <td className="px-6 py-4 text-xs font-bold text-slate-500">{cart.relacion}</td>
-                              <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cart.saldoFecha)}
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <div className="flex justify-center gap-2">
-                                  <button onClick={() => setEditingCartera(cart)} className="p-1 hover:bg-slate-100 rounded text-slate-600">
-                                    Editar
-                                  </button>
-                                  <button onClick={() => cart.id && handleDeleteCartera(cart.id)} className="p-1 hover:bg-red-50 rounded text-red-600">
-                                    Eliminar
-                                  </button>
-                                </div>
-                              </td>
+                      {cartera.length > 0 ? (
+                        <table className="w-full text-sm text-left text-slate-600">
+                          <thead className="bg-slate-50 text-slate-700 uppercase text-xs font-semibold border-b border-slate-200">
+                            <tr>
+                              <th className="px-6 py-4">Código Socio</th>
+                              <th className="px-6 py-4">Identificación</th>
+                              <th className="px-6 py-4">Socio / Deudor</th>
+                              <th className="px-6 py-4">Operación</th>
+                              <th className="px-6 py-4">Relación</th>
+                              <th className="px-6 py-4 text-right">Saldo ($)</th>
+                              <th className="px-6 py-4 text-center">Acciones</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {cartera.map((cart) => (
+                              <tr key={cart.id} className="hover:bg-slate-50/50">
+                                <td className="px-6 py-4 font-mono text-xs">{cart.codigoSocio}</td>
+                                <td className="px-6 py-4 font-mono text-xs text-slate-500">{cart.idCliente}</td>
+                                <td className="px-6 py-4 font-semibold text-slate-900">{cart.nombreSocio}</td>
+                                <td className="px-6 py-4 font-mono text-xs">{cart.numeroOperacion}</td>
+                                <td className="px-6 py-4 text-xs font-bold text-slate-500">{cart.relacion}</td>
+                                <td className="px-6 py-4 text-right font-bold text-slate-900">
+                                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cart.saldoFecha)}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <div className="flex justify-center gap-2">
+                                    <button onClick={() => setEditingCartera(cart)} className="p-1 hover:bg-slate-100 rounded text-slate-600">
+                                      Editar
+                                    </button>
+                                    <button onClick={() => cart.id && handleDeleteCartera(cart.id)} className="p-1 hover:bg-red-50 rounded text-red-600">
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div className="p-8 text-center text-slate-400 font-semibold text-sm">
+                          No hay registros de cartera. Importe una base de datos o agregue uno manualmente.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -773,53 +960,59 @@ export default function DashboardPage() {
                   {/* Bienes Table */}
                   <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left text-slate-600">
-                        <thead className="bg-slate-50 text-slate-700 uppercase text-xs font-semibold tracking-wider border-b border-slate-200/60">
-                          <tr>
-                            <th className="px-6 py-4">Tipo</th>
-                            <th className="px-6 py-4">ID / Placa</th>
-                            <th className="px-6 py-4">Descripción</th>
-                            <th className="px-6 py-4">Cantón</th>
-                            <th className="px-6 py-4 text-right">Saldo Libros ($)</th>
-                            <th className="px-6 py-4 text-right">Valor Avalúo ($)</th>
-                            <th className="px-6 py-4 text-center">Físico</th>
-                            <th className="px-6 py-4 text-center">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {bienes.map((bien) => (
-                            <tr key={bien.id} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-6 py-4 font-semibold text-slate-900">{bien.tipoBien}</td>
-                              <td className="px-6 py-4 text-xs font-mono text-slate-500">{bien.numeroIdentificacion}</td>
-                              <td className="px-6 py-4 max-w-xs truncate text-slate-600">{bien.descripcion}</td>
-                              <td className="px-6 py-4 text-slate-500">{bien.ubicacionCanton}</td>
-                              <td className="px-6 py-4 text-right font-medium text-slate-800">
-                                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(bien.saldoLibros)}
-                              </td>
-                              <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(bien.valorAvaluo)}
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                {bien.existenciaFisica ? (
-                                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200/40">Sí</span>
-                                ) : (
-                                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200/40">No</span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <div className="flex items-center justify-center gap-2">
-                                  <button onClick={() => setEditingBien(bien)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors">
-                                    Editar
-                                  </button>
-                                  <button onClick={() => bien.id && handleDeleteBien(bien.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 transition-colors">
-                                    Eliminar
-                                  </button>
-                                </div>
-                              </td>
+                      {bienes.length > 0 ? (
+                        <table className="w-full text-sm text-left text-slate-600">
+                          <thead className="bg-slate-50 text-slate-700 uppercase text-xs font-semibold tracking-wider border-b border-slate-200/60">
+                            <tr>
+                              <th className="px-6 py-4">Tipo</th>
+                              <th className="px-6 py-4">ID / Placa</th>
+                              <th className="px-6 py-4">Descripción</th>
+                              <th className="px-6 py-4">Cantón</th>
+                              <th className="px-6 py-4 text-right">Saldo Libros ($)</th>
+                              <th className="px-6 py-4 text-right">Valor Avalúo ($)</th>
+                              <th className="px-6 py-4 text-center">Físico</th>
+                              <th className="px-6 py-4 text-center">Acciones</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {bienes.map((bien) => (
+                              <tr key={bien.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-6 py-4 font-semibold text-slate-900">{bien.tipoBien}</td>
+                                <td className="px-6 py-4 text-xs font-mono text-slate-500">{bien.numeroIdentificacion}</td>
+                                <td className="px-6 py-4 max-w-xs truncate text-slate-600">{bien.descripcion}</td>
+                                <td className="px-6 py-4 text-slate-500">{bien.ubicacionCanton}</td>
+                                <td className="px-6 py-4 text-right font-medium text-slate-800">
+                                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(bien.saldoLibros)}
+                                </td>
+                                <td className="px-6 py-4 text-right font-bold text-slate-900">
+                                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(bien.valorAvaluo)}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  {bien.existenciaFisica ? (
+                                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200/40">Sí</span>
+                                  ) : (
+                                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200/40">No</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button onClick={() => setEditingBien(bien)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors">
+                                      Editar
+                                    </button>
+                                    <button onClick={() => bien.id && handleDeleteBien(bien.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 transition-colors">
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div className="p-8 text-center text-slate-400 font-semibold text-sm">
+                          No hay registros de bienes realizables. Importe una base de datos o agregue uno manualmente.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -834,97 +1027,227 @@ export default function DashboardPage() {
                 <h2 className="text-2xl font-bold text-slate-900">Balances y Contabilidad</h2>
                 <p className="text-sm text-slate-500 mt-1">Registros cargados desde el balance de corte oficial de la cooperativa.</p>
               </div>
-              <ReadOnlyBalanceTable balances={INITIAL_BALANCES} />
+              {balances.length > 0 ? (
+                <ReadOnlyBalanceTable balances={balances} />
+              ) : (
+                <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400 font-semibold text-sm shadow-sm">
+                  No hay registros de balances contables. Cargue una plantilla de balances en la opción de Importar Excel.
+                </div>
+              )}
             </div>
           )}
 
           {/* TAB: UPLOAD EXCEL */}
           {activeTab === "upload" && (
-            <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
+            <div className="space-y-8 animate-fadeIn">
               <div className="border-b border-slate-200/80 pb-4">
-                <h2 className="text-2xl font-bold text-slate-900">Cargar Archivo Excel de Ejemplo</h2>
-                <p className="text-sm text-slate-500 mt-1">Sube un archivo .xlsx o .xlsm para simular la importación de bienes y balances en el sistema.</p>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Importación e Inicialización de Bases de Datos</h2>
+                <p className="text-sm text-slate-500 mt-1">Cargue los archivos de Excel correspondientes a cada módulo para poblar la base de datos.</p>
               </div>
 
-              <div className="bg-white p-8 rounded-2xl border border-slate-200/60 shadow-sm space-y-6">
-                <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-8 text-center transition-colors cursor-pointer relative group">
-                  <input
-                    type="file"
-                    accept=".xlsx,.xlsm"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setUploadFile(file);
-                        setUploadSuccess(false);
-                      }
-                    }}
-                  />
-                  <div className="space-y-4">
-                    <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                      <svg className="w-6 h-6 text-slate-500 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
+              {/* Grid 2x2 for uploads */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* 1. DEPOSITOS CARD */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <span className="bg-blue-50 text-blue-600 p-1.5 rounded-lg text-sm">DEP</span>
+                        Bases de Depósitos
+                      </h3>
+                      <a
+                        href="/PLANTILLAS/plantilla_depositos.xlsx"
+                        download="plantilla_depositos.xlsx"
+                        className="text-xs text-blue-600 hover:text-blue-700 font-bold uppercase tracking-wider flex items-center gap-1.5"
+                      >
+                        Descargar Plantilla
+                      </a>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-700">Arrastra tu archivo aquí o haz clic para explorar</p>
-                      <p className="text-xs text-slate-400 mt-1">Soporta formatos de Excel (.xlsx, .xlsm)</p>
-                    </div>
+                    <p className="text-xs text-slate-500">Formato requerido: No., TIPO PERSONA, VALIDADOR ID DEPOSITANTE, ID DEPOSITANTE, ACREEDOR, SALDO TOTAL, etc.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xlsm"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setFileDepositos(file);
+                          setSuccessDepositos(false);
+                        }
+                      }}
+                      className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                    />
+                    {fileDepositos && (
+                      <button
+                        onClick={handleUploadDepositos}
+                        disabled={loadingDepositos}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider py-2.5 rounded-xl transition-all shadow-md shadow-blue-500/10"
+                      >
+                        {loadingDepositos ? "Procesando..." : "Importar a Depósitos"}
+                      </button>
+                    )}
+                    {successDepositos && (
+                      <p className="text-xs text-emerald-600 font-semibold">✓ Base de Depósitos cargada correctamente.</p>
+                    )}
                   </div>
                 </div>
 
-                {uploadFile && (
-                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800">{uploadFile.name}</p>
-                        <p className="text-xs text-slate-400">{(uploadFile.size / 1024).toFixed(2)} KB</p>
-                      </div>
+                {/* 2. CARTERA CARD */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <span className="bg-purple-50 text-purple-600 p-1.5 rounded-lg text-sm">CAR</span>
+                        Bases de Cartera
+                      </h3>
+                      <a
+                        href="/PLANTILLAS/plantilla_cartera.xlsx"
+                        download="plantilla_cartera.xlsx"
+                        className="text-xs text-blue-600 hover:text-blue-700 font-bold uppercase tracking-wider flex items-center gap-1.5"
+                      >
+                        Descargar Plantilla
+                      </a>
                     </div>
-                    <button onClick={() => setUploadFile(null)} className="text-xs text-red-500 hover:text-red-700 font-semibold">Remover</button>
+                    <p className="text-xs text-slate-500">Formato requerido: CODIGO SOCIO, TIPO ID SOCIO, VALIDADOR ID SOCIO, NUMERO DE OPERACION, ID CLIENTE, SALDO CARTERA.</p>
                   </div>
-                )}
 
-                <div className="flex justify-end pt-4">
-                  <button
-                    disabled={!uploadFile || isUploading}
-                    onClick={() => {
-                      setIsUploading(true);
-                      setTimeout(() => {
-                        setIsUploading(false);
-                        setUploadSuccess(true);
-                        // Inject 2 new simulated assets to show integration
-                        setBienes((prev) => [
-                          ...prev,
-                          {
-                            id: prev.length + 1,
-                            tipoBien: "Inmueble",
-                            descripcion: "Terreno Sector Industrial - Lote Importado por Excel",
-                            existenciaFisica: true,
-                            numeroIdentificacion: "EXCEL-LOT-99",
-                            ubicacionCanton: "Manta",
-                            saldoLibros: 120000,
-                            valorAvaluo: 145000,
-                            disponibilidad: "Disponible",
-                          },
-                        ]);
-                        setUploadFile(null);
-                      }, 2000);
-                    }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl shadow-lg transition-all text-sm disabled:opacity-50"
-                  >
-                    {isUploading ? "Procesando Archivo..." : "Importar Datos de Ejemplo"}
-                  </button>
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xlsm"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setFileCartera(file);
+                          setSuccessCartera(false);
+                        }
+                      }}
+                      className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                    />
+                    {fileCartera && (
+                      <button
+                        onClick={handleUploadCartera}
+                        disabled={loadingCartera}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider py-2.5 rounded-xl transition-all shadow-md shadow-blue-500/10"
+                      >
+                        {loadingCartera ? "Procesando..." : "Importar a Cartera"}
+                      </button>
+                    )}
+                    {successCartera && (
+                      <p className="text-xs text-emerald-600 font-semibold">✓ Base de Cartera cargada correctamente.</p>
+                    )}
+                  </div>
                 </div>
 
-                {uploadSuccess && (
-                  <div className="bg-green-50 border border-green-200 text-green-800 rounded-xl p-4 flex items-center gap-3">
-                    <p className="text-sm font-semibold">¡Excel importado correctamente! Se actualizaron los indicadores del Dashboard.</p>
+                {/* 3. BIENES CARD */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <span className="bg-amber-50 text-amber-600 p-1.5 rounded-lg text-sm">BIE</span>
+                        Bienes Realizables
+                      </h3>
+                      <a
+                        href="/PLANTILLAS/plantilla_bienes.xlsx"
+                        download="plantilla_bienes.xlsx"
+                        className="text-xs text-blue-600 hover:text-blue-700 font-bold uppercase tracking-wider flex items-center gap-1.5"
+                      >
+                        Descargar Plantilla
+                      </a>
+                    </div>
+                    <p className="text-xs text-slate-500">Formato requerido: TIPO DE BIEN, DESCRIPCION, EXISTENCIA FISICA, Nº IDENTIFICACION, SALDO LIBROS, VALOR AVALUO.</p>
                   </div>
-                )}
+
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xlsm"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setFileBienes(file);
+                          setSuccessBienes(false);
+                        }
+                      }}
+                      className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                    />
+                    {fileBienes && (
+                      <button
+                        onClick={handleUploadBienes}
+                        disabled={loadingBienes}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider py-2.5 rounded-xl transition-all shadow-md shadow-blue-500/10"
+                      >
+                        {loadingBienes ? "Procesando..." : "Importar a Bienes"}
+                      </button>
+                    )}
+                    {successBienes && (
+                      <p className="text-xs text-emerald-600 font-semibold">✓ Base de Bienes cargada correctamente.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. BALANCES CARD */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <span className="bg-emerald-50 text-emerald-600 p-1.5 rounded-lg text-sm">BAL</span>
+                        Balances Contables
+                      </h3>
+                      <a
+                        href="/PLANTILLAS/plantilla_balances.xlsx"
+                        download="plantilla_balances.xlsx"
+                        className="text-xs text-blue-600 hover:text-blue-700 font-bold uppercase tracking-wider flex items-center gap-1.5"
+                      >
+                        Descargar Plantilla
+                      </a>
+                    </div>
+                    <p className="text-xs text-slate-500">Formato requerido: NIVEL, CODIGO CUENTA, NOMBRE CUENTA, SALDO MES, FECHA REGISTRO.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xlsm"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setFileBalances(file);
+                          setSuccessBalances(false);
+                        }
+                      }}
+                      className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                    />
+                    {fileBalances && (
+                      <button
+                        onClick={handleUploadBalances}
+                        disabled={loadingBalances}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider py-2.5 rounded-xl transition-all shadow-md shadow-blue-500/10"
+                      >
+                        {loadingBalances ? "Procesando..." : "Importar a Balances"}
+                      </button>
+                    )}
+                    {successBalances && (
+                      <p className="text-xs text-emerald-600 font-semibold">✓ Base de Balances cargada correctamente.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Reset/Clear Section */}
+              <div className="bg-red-50 border border-red-200 p-6 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4 mt-8">
+                <div>
+                  <h4 className="text-red-800 font-bold text-md">Zona de Peligro: Restablecer Sistema</h4>
+                  <p className="text-xs text-red-600 mt-1">Esta acción borrará por completo todos los registros actuales de Depósitos, Cartera, Bienes y Balances.</p>
+                </div>
+                <button
+                  onClick={handleClearAll}
+                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all shadow-lg shadow-red-500/10"
+                >
+                  Limpiar Todas las Bases de Datos
+                </button>
               </div>
             </div>
           )}
