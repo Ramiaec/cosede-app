@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Módulo: Información General
+model EntidadLiquidadora {
+  id                Int       @id @default(autoincrement())
+  rucCooperativa    String    @unique
+  razonSocial       String
+  tipoIdLiquidador  String
+  idLiquidador      String
+  nombreLiquidador  String
+  fechaCorte        DateTime
+
+  bienes            Bien[]
+  balances          Balance[]
+  gestionDepositos  GestionDeposito?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Módulo Dinámico (CRUD): Bienes
+model Bien {
+  id                Int       @id @default(autoincrement())
+  entidadId         Int
+  entidad           EntidadLiquidadora @relation(fields: [entidadId], references: [id])
+  
+  tipoBien          String
+  descripcion       String
+  existenciaFisica  Boolean
+  numeroIdentificacion String
+  ubicacionCanton   String
+  saldoLibros       Float
+  valorAvaluo       Float
+  disponibilidad    String
+  
+  // Datos de venta (pueden ser nulos si no se ha vendido)
+  fechaVenta        DateTime?
+  valorVenta        Float?
+  tipoVenta         String?
+  compradorId       String?
+  razonSocialComprador String?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Módulo Bloqueado/Calculado: Balances (Solo Lectura en UI para transaccional)
+model Balance {
+  id                Int       @id @default(autoincrement())
+  entidadId         Int
+  entidad           EntidadLiquidadora @relation(fields: [entidadId], references: [id])
+  
+  nivel             Int
+  codigoCuenta      String
+  nombreCuenta      String
+  saldoMes          Float     // Consolidado o calculado internamente
+  fechaRegistro     DateTime
+
+  createdAt         DateTime  @default(now())
+}
+
+// Módulo Consolidado: Gestión de Depósitos (Alimenta el Dashboard)
+model GestionDeposito {
+  id                Int       @id @default(autoincrement())
+  entidadId         Int       @unique
+  entidad           EntidadLiquidadora @relation(fields: [entidadId], references: [id])
+
+  sociosVinculados  Int       @default(0)
+  sociosNoIdentificados Int   @default(0)
+  sociosNoVinculados Int      @default(0)
+  acreenciasPendientes Float  @default(0)
+  
+  updatedAt         DateTime  @updatedAt
+}
