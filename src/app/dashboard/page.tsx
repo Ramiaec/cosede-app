@@ -176,6 +176,57 @@ export default function DashboardPage() {
     }
   }, [user, authLoading, router]);
 
+  // Load data from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedBienes = localStorage.getItem("cosede_bienes");
+      if (savedBienes) setBienes(JSON.parse(savedBienes));
+
+      const savedDepositos = localStorage.getItem("cosede_depositos");
+      if (savedDepositos) setDepositos(JSON.parse(savedDepositos));
+
+      const savedCartera = localStorage.getItem("cosede_cartera");
+      if (savedCartera) setCartera(JSON.parse(savedCartera));
+
+      const savedBalances = localStorage.getItem("cosede_balances");
+      if (savedBalances) setBalances(JSON.parse(savedBalances));
+
+      const savedInicio = localStorage.getItem("cosede_inicio_data");
+      if (savedInicio) setInicioData(JSON.parse(savedInicio));
+    }
+  }, []);
+
+  // Save changes to localStorage on state modifications
+  useEffect(() => {
+    if (bienes.length > 0) {
+      localStorage.setItem("cosede_bienes", JSON.stringify(bienes));
+    }
+  }, [bienes]);
+
+  useEffect(() => {
+    if (depositos.length > 0) {
+      localStorage.setItem("cosede_depositos", JSON.stringify(depositos));
+    }
+  }, [depositos]);
+
+  useEffect(() => {
+    if (cartera.length > 0) {
+      localStorage.setItem("cosede_cartera", JSON.stringify(cartera));
+    }
+  }, [cartera]);
+
+  useEffect(() => {
+    if (balances.length > 0) {
+      localStorage.setItem("cosede_balances", JSON.stringify(balances));
+    }
+  }, [balances]);
+
+  useEffect(() => {
+    if (inicioData.rucCooperativa !== "") {
+      localStorage.setItem("cosede_inicio_data", JSON.stringify(inicioData));
+    }
+  }, [inicioData]);
+
   // Bienes states
   const [showAddBien, setShowAddBien] = useState(false);
   const [editingBien, setEditingBien] = useState<BienData | null>(null);
@@ -330,16 +381,24 @@ export default function DashboardPage() {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        // Use { range: 1 } to skip Row 1 (the 'DATOS GENERALES' / 'FECHA DE CORTE' title row)
+        // so that Row 2 (the headers row) becomes the headers for JSON mapping!
+        const rows = XLSX.utils.sheet_to_json(sheet, { range: 1, defval: "" });
 
-        const mapped = rows.map((r: any, idx: number) => ({
-          id: idx + 1,
-          nivel: parseInt(r["NIVEL"]) || 1,
-          codigoCuenta: String(r["CODIGO CUENTA"] || r["CODIGO_CUENTA"] || ""),
-          nombreCuenta: r["NOMBRE CUENTA"] || r["NOMBRE_CUENTA"] || "",
-          saldoMes: parseFloat(r["SALDO MES"] || r["SALDO_MES"]) || 0,
-          fechaRegistro: String(r["FECHA REGISTRO"] || r["FECHA_REGISTRO"] || ""),
-        }));
+        const mapped = rows.map((r: any, idx: number) => {
+          const rawCodigo = r["CODIGO"] !== undefined ? r["CODIGO"] : (r["CODIGO CUENTA"] || r["CODIGO_CUENTA"] || "");
+          const rawCuenta = r["CUENTA"] !== undefined ? r["CUENTA"] : (r["NOMBRE CUENTA"] || r["NOMBRE_CUENTA"] || "");
+          const rawSaldo = r["mes 1"] !== undefined ? r["mes 1"] : (r["MES 1"] || r["SALDO MES"] || r["SALDO_MES"] || r["SALDO"] || 0);
+
+          return {
+            id: idx + 1,
+            nivel: parseInt(r["NIVEL"]) || 1,
+            codigoCuenta: String(rawCodigo),
+            nombreCuenta: String(rawCuenta),
+            saldoMes: parseFloat(rawSaldo) || 0,
+            fechaRegistro: String(r["FECHA REGISTRO"] || r["FECHA_REGISTRO"] || "2026-06-30"),
+          };
+        });
 
         setBalances(mapped);
         setSuccessBalances(true);
@@ -434,6 +493,10 @@ export default function DashboardPage() {
       setDepositos([]);
       setCartera([]);
       setBalances([]);
+      localStorage.removeItem("cosede_bienes");
+      localStorage.removeItem("cosede_depositos");
+      localStorage.removeItem("cosede_cartera");
+      localStorage.removeItem("cosede_balances");
       setSuccessBienes(false);
       setSuccessBalances(false);
       setSuccessDepositos(false);
@@ -582,6 +645,12 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="flex items-center gap-6">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+              Auto-guardado activo
+            </div>
             <div className="text-right">
               <p className="text-xs text-slate-400">Fecha Corte Operativo</p>
               <p className="text-sm font-bold text-slate-700">{inicioData.fechaCorte}</p>
@@ -1072,8 +1141,8 @@ export default function DashboardPage() {
                         Bases de Depósitos
                       </h3>
                       <a
-                        href="/PLANTILLAS/plantilla_depositos.xlsx"
-                        download="plantilla_depositos.xlsx"
+                        href="/PLANTILLAS/PDEPOSITOS.xlsx"
+                        download="PDEPOSITOS.xlsx"
                         className="text-xs text-blue-600 hover:text-blue-700 font-bold uppercase tracking-wider flex items-center gap-1.5"
                       >
                         Descargar Plantilla
@@ -1119,8 +1188,8 @@ export default function DashboardPage() {
                         Bases de Cartera
                       </h3>
                       <a
-                        href="/PLANTILLAS/plantilla_cartera.xlsx"
-                        download="plantilla_cartera.xlsx"
+                        href="/PLANTILLAS/PCARTERA.xlsx"
+                        download="PCARTERA.xlsx"
                         className="text-xs text-blue-600 hover:text-blue-700 font-bold uppercase tracking-wider flex items-center gap-1.5"
                       >
                         Descargar Plantilla
@@ -1166,8 +1235,8 @@ export default function DashboardPage() {
                         Bienes Realizables
                       </h3>
                       <a
-                        href="/PLANTILLAS/plantilla_bienes.xlsx"
-                        download="plantilla_bienes.xlsx"
+                        href="/PLANTILLAS/PBIENES.xlsx"
+                        download="PBIENES.xlsx"
                         className="text-xs text-blue-600 hover:text-blue-700 font-bold uppercase tracking-wider flex items-center gap-1.5"
                       >
                         Descargar Plantilla
@@ -1213,8 +1282,8 @@ export default function DashboardPage() {
                         Balances Contables
                       </h3>
                       <a
-                        href="/PLANTILLAS/plantilla_balances.xlsx"
-                        download="plantilla_balances.xlsx"
+                        href="/PLANTILLAS/PBALANCE.xlsx"
+                        download="PBALANCE.xlsx"
                         className="text-xs text-blue-600 hover:text-blue-700 font-bold uppercase tracking-wider flex items-center gap-1.5"
                       >
                         Descargar Plantilla
