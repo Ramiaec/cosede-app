@@ -56,9 +56,14 @@ const INITIAL_BALANCES: BalanceItem[] = [
 
 export default function DashboardPage() {
   const [bienes, setBienes] = useState<BienData[]>(INITIAL_BIENES);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "bienes" | "balances">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "bienes" | "balances" | "upload">("dashboard");
   const [showAddBien, setShowAddBien] = useState(false);
   const [editingBien, setEditingBien] = useState<BienData | null>(null);
+
+  // States for Excel Upload Simulation
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   // Financial calculations from dynamic Bienes data
   const totalBienesLibros = bienes.reduce((acc, curr) => acc + curr.saldoLibros, 0);
@@ -146,6 +151,19 @@ export default function DashboardPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Balances (Solo Lectura)
+          </button>
+          <button
+            onClick={() => { setActiveTab("upload"); setEditingBien(null); setShowAddBien(false); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              activeTab === "upload"
+                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/10"
+                : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Cargar Excel (Ejemplo)
           </button>
         </nav>
 
@@ -445,6 +463,122 @@ export default function DashboardPage() {
                 <p className="text-sm text-slate-500 mt-1">Registros cargados desde el balance de corte oficial de la cooperativa.</p>
               </div>
               <ReadOnlyBalanceTable balances={INITIAL_BALANCES} />
+            </div>
+          )}
+
+          {/* TAB 4: CARGAR EXCEL DE EJEMPLO */}
+          {activeTab === "upload" && (
+            <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
+              <div className="border-b border-slate-200/80 pb-4">
+                <h2 className="text-2xl font-bold text-slate-900">Cargar Archivo Excel de Ejemplo</h2>
+                <p className="text-sm text-slate-500 mt-1">Sube un archivo .xlsx o .xlsm para simular la importación de bienes y balances en el sistema.</p>
+              </div>
+
+              <div className="bg-white p-8 rounded-2xl border border-slate-200/60 shadow-sm space-y-6">
+                <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-8 text-center transition-colors cursor-pointer relative group">
+                  <input
+                    type="file"
+                    accept=".xlsx,.xlsm"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setUploadFile(file);
+                        setUploadSuccess(false);
+                      }
+                    }}
+                  />
+                  <div className="space-y-4">
+                    <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+                      <svg className="w-6 h-6 text-slate-500 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-700">Arrastra tu archivo aquí o haz clic para explorar</p>
+                      <p className="text-xs text-slate-400 mt-1">Soporta formatos de Excel (.xlsx, .xlsm)</p>
+                    </div>
+                  </div>
+                </div>
+
+                {uploadFile && (
+                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">{uploadFile.name}</p>
+                        <p className="text-xs text-slate-400">{(uploadFile.size / 1024).toFixed(2)} KB</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setUploadFile(null)}
+                      className="text-xs text-red-500 hover:text-red-700 font-semibold"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-4">
+                  <button
+                    disabled={!uploadFile || isUploading}
+                    onClick={() => {
+                      setIsUploading(true);
+                      setTimeout(() => {
+                        setIsUploading(false);
+                        setUploadSuccess(true);
+                        // Inject 2 new simulated assets to show integration
+                        setBienes((prev) => [
+                          ...prev,
+                          {
+                            id: prev.length + 1,
+                            tipoBien: "Inmueble",
+                            descripcion: "Terreno Sector Industrial - Lote Importado por Excel",
+                            existenciaFisica: true,
+                            numeroIdentificacion: "EXCEL-LOT-99",
+                            ubicacionCanton: "Manta",
+                            saldoLibros: 120000,
+                            valorAvaluo: 145000,
+                            disponibilidad: "Disponible",
+                          },
+                          {
+                            id: prev.length + 2,
+                            tipoBien: "Equipos de Computación",
+                            descripcion: "Servidores HP ProLiant Gen10",
+                            existenciaFisica: true,
+                            numeroIdentificacion: "EXCEL-HP-88",
+                            ubicacionCanton: "Quito",
+                            saldoLibros: 15400,
+                            valorAvaluo: 14000,
+                            disponibilidad: "Vendido",
+                            fechaVenta: "2026-07-10",
+                            valorVenta: 14500,
+                            compradorId: "1790088776001",
+                            razonSocialComprador: "Tecnologías Globales Cía. Ltda.",
+                          }
+                        ]);
+                        setUploadFile(null);
+                      }, 2000);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl shadow-lg shadow-blue-500/10 active:scale-95 transition-all text-sm disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    {isUploading ? "Procesando Archivo..." : "Importar Datos de Ejemplo"}
+                  </button>
+                </div>
+
+                {uploadSuccess && (
+                  <div className="bg-green-50 border border-green-200 text-green-800 rounded-xl p-4 flex items-center gap-3">
+                    <svg className="w-5 h-5 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm font-semibold">
+                      ¡Excel importado correctamente! Se han cargado 2 nuevos bienes realizables y se actualizaron los indicadores del Dashboard.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
