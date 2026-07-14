@@ -1,24 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../../context/AuthContext";
 import BienForm, { BienData } from "../../components/forms/BienForm";
 import ReadOnlyBalanceTable, { BalanceItem } from "../../components/ui/ReadOnlyBalanceTable";
 import InicioForm, { InicioData } from "../../components/forms/InicioForm";
 import DepositoForm, { DepositoData } from "../../components/forms/DepositoForm";
 import CarteraForm, { CarteraData } from "../../components/forms/CarteraForm";
-
-// Initial Mock Config (INICIO)
-const INITIAL_INICIO: InicioData = {
-  rucCooperativa: "1790000000001",
-  razonSocial: "Cooperativa de Ahorro y Crédito COSEDE Ejemplo",
-  tipoIdLiquidador: "R",
-  idLiquidador: "1712345678001",
-  nombreLiquidador: "Ing. Juan Pérez Maldonado",
-  tipoLiquidacion: "Forzosa",
-  aplicaSeguro: "SI",
-  fechaLineaBase: "2019-12-31",
-  fechaCorte: "2026-06-30",
-};
 
 // Initial Mock Assets (BIENES)
 const INITIAL_BIENES: BienData[] = [
@@ -145,11 +134,45 @@ const INITIAL_BALANCES: BalanceItem[] = [
 type TabType = "inicio" | "dashboard" | "depositos" | "cartera" | "bienes" | "balances" | "upload";
 
 export default function DashboardPage() {
+  const { user, logout, loading: authLoading } = useAuth();
+  const router = useRouter();
+
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
-  const [inicioData, setInicioData] = useState<InicioData>(INITIAL_INICIO);
   const [bienes, setBienes] = useState<BienData[]>(INITIAL_BIENES);
   const [depositos, setDepositos] = useState<DepositoData[]>(INITIAL_DEPOSITOS);
   const [cartera, setCartera] = useState<CarteraData[]>(INITIAL_CARTERA);
+
+  // Dynamic state for general configurations (INICIO) which inherits from user session
+  const [inicioData, setInicioData] = useState<InicioData>({
+    rucCooperativa: "",
+    razonSocial: "",
+    tipoIdLiquidador: "R",
+    idLiquidador: "",
+    nombreLiquidador: "",
+    tipoLiquidacion: "Forzosa",
+    aplicaSeguro: "SI",
+    fechaLineaBase: "2019-12-31",
+    fechaCorte: "2026-06-30",
+  });
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/");
+    } else if (user) {
+      setInicioData({
+        rucCooperativa: user.ruc,
+        razonSocial: user.razonSocial,
+        tipoIdLiquidador: "R",
+        idLiquidador: user.ruc,
+        nombreLiquidador: user.liquidador,
+        tipoLiquidacion: user.estadoLiquidacion,
+        aplicaSeguro: "SI",
+        fechaLineaBase: "2019-12-31",
+        fechaCorte: user.fechaResolucion ? user.fechaResolucion.split("T")[0] : "2026-06-30",
+      });
+    }
+  }, [user, authLoading, router]);
 
   // Bienes states
   const [showAddBien, setShowAddBien] = useState(false);
@@ -167,6 +190,17 @@ export default function DashboardPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+        <div className="space-y-4 text-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-slate-400 text-sm">Verificando sesión...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Financial calculations in Real Time
   const totalBienesLibros = bienes.reduce((acc, curr) => acc + curr.saldoLibros, 0);
@@ -225,48 +259,53 @@ export default function DashboardPage() {
 
   const handleInicioSubmit = (data: InicioData) => {
     setInicioData(data);
-    alert("Configuración de INICIO guardada correctamente en el estado local de la aplicación.");
+    alert("Datos de INICIO guardados y modificados en el estado de sesión actual.");
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.push("/");
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800 font-sans">
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col border-r border-slate-800 shadow-xl">
+      <aside className="w-66 bg-slate-900 text-slate-100 flex flex-col border-r border-slate-800 shadow-xl">
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-xl text-white shadow-md shadow-blue-500/20">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-gradient-to-tr from-blue-600 to-emerald-500 p-2.5 rounded-xl text-white shadow-md shadow-blue-500/20">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div>
-            <h1 className="font-bold text-md leading-none tracking-tight">COSEDE APP</h1>
-            <span className="text-xs text-slate-500">Automatización Excel</span>
+            <h1 className="font-bold text-sm leading-none tracking-tight">COSEDE APP</h1>
+            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Multi-cooperativa</span>
           </div>
         </div>
 
         {/* Navigation items */}
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        <nav className="flex-1 px-4 py-6 space-y-1.5">
           {/* INICIO */}
           <button
             onClick={() => setActiveTab("inicio")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-250 ${
               activeTab === "inicio" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            1. Inicio / Configuración
+            1. Inicio / Config
           </button>
 
           {/* DASHBOARD */}
           <button
             onClick={() => setActiveTab("dashboard")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-250 ${
               activeTab === "dashboard" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" />
             </svg>
             2. Dashboard (REPORTE)
@@ -275,78 +314,86 @@ export default function DashboardPage() {
           {/* DEPOSITOS */}
           <button
             onClick={() => setActiveTab("depositos")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-250 ${
               activeTab === "depositos" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            3. Depósitos (Acreedores)
+            3. Depósitos
           </button>
 
           {/* CARTERA */}
           <button
             onClick={() => setActiveTab("cartera")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-250 ${
               activeTab === "cartera" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            4. Cartera y Juicios
+            4. Cartera
           </button>
 
           {/* BIENES */}
           <button
             onClick={() => setActiveTab("bienes")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-250 ${
               activeTab === "bienes" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 114 0v2m-4 0h4m-2 3v2m0 1v3m0 0h.01" />
             </svg>
-            5. Bienes Realizables
+            5. Bienes
           </button>
 
           {/* BALANCES */}
           <button
             onClick={() => setActiveTab("balances")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-250 ${
               activeTab === "balances" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            6. Balances (Solo Lectura)
+            6. Balances
           </button>
 
           {/* EXCEL UPLOAD */}
           <button
             onClick={() => setActiveTab("upload")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-250 ${
               activeTab === "upload" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            7. Importar Excel de Prueba
+            7. Importar Excel
           </button>
         </nav>
 
-        {/* User profile info */}
-        <div className="p-4 border-t border-slate-800 flex items-center gap-3 bg-slate-950/20">
-          <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center font-bold text-blue-500 border border-slate-700/50">
-            LIQ
+        {/* User profile info & Logout */}
+        <div className="p-4 border-t border-slate-800 flex flex-col gap-3 bg-slate-950/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center font-black text-white border border-slate-700/50 text-xs">
+              COOP
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold leading-none text-slate-200 truncate">{inicioData.nombreLiquidador.split(" ")[0] || "Liquidador"}</p>
+              <span className="text-[10px] text-slate-500 font-mono truncate block">RUC: {inicioData.rucCooperativa}</span>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-bold leading-none text-slate-200">{inicioData.nombreLiquidador.split(" ")[1] || "Liquidador"}</p>
-            <span className="text-xs text-slate-500">RUC: {inicioData.rucCooperativa}</span>
-          </div>
+          <button
+            onClick={handleLogout}
+            className="w-full py-2.5 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:bg-red-950/20 hover:border-red-900/40 text-xs font-bold uppercase tracking-wider transition-all"
+          >
+            Cerrar Sesión
+          </button>
         </div>
       </aside>
 
@@ -355,7 +402,7 @@ export default function DashboardPage() {
         {/* Top Navbar */}
         <header className="h-20 bg-white border-b border-slate-150 px-8 flex items-center justify-between shadow-sm sticky top-0 z-40 backdrop-blur-md bg-white/90">
           <div className="flex items-center gap-4">
-            <span className="text-xs font-bold px-3 py-1 bg-slate-100 rounded-full text-slate-500 border border-slate-200/50">
+            <span className="text-xs font-bold px-3 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200/50">
               {inicioData.razonSocial}
             </span>
           </div>
@@ -500,8 +547,8 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2">
-                      <span className="text-sm text-slate-600">Estado del Liquidador</span>
-                      <span className="text-sm font-semibold text-slate-700">{inicioData.nombreLiquidador}</span>
+                      <span className="text-sm text-slate-600">Estado de Liquidación</span>
+                      <span className="text-sm font-semibold text-slate-700">{inicioData.tipoLiquidacion}</span>
                     </div>
                   </div>
                 </div>

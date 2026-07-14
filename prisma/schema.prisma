@@ -21,7 +21,7 @@ model EntidadLiquidadora {
 
   // Relaciones
   bienes                Bien[]
-  balances          Balance[]
+  balances              Balance[]
   depositos             Deposito[]
   carteras              CarteraJuicio[]
 
@@ -108,4 +108,18 @@ model Balance {
   fechaRegistro         DateTime
 
   createdAt             DateTime  @default(now())
+}
+
+// Tabla Maestra de Cooperativas y Usuarios (Login)
+model CooperativaUsuario {
+  id                    Int      @id @default(autoincrement())
+  ruc                   String   @unique
+  razonSocial           String
+  estadoLiquidacion     String   // Ej. 'EN LIQUIDACION'
+  fechaResolucion       DateTime // Fecha de resolución de liquidación
+  liquidador            String   // Nombre completo del liquidador
+  usuario               String   @unique // Coincide con RUC
+  clave                 String   // Clave en texto plano para validación directa (ejemplo/prueba)
+
+  createdAt             DateTime @default(now())
 }
