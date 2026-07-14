@@ -6,75 +6,106 @@ datasource db {
   provider = "postgresql"
 }
 
-// Módulo: Información General
+// Módulo: INICIO (Datos Generales de la Cooperativa y del Operativo)
 model EntidadLiquidadora {
-  id                Int       @id @default(autoincrement())
-  rucCooperativa    String    @unique
-  razonSocial       String
-  tipoIdLiquidador  String
-  idLiquidador      String
-  nombreLiquidador  String
-  fechaCorte        DateTime
+  id                    Int       @id @default(autoincrement())
+  rucCooperativa        String    @unique
+  razonSocial           String
+  tipoIdLiquidador      String    // C (Cédula) / R (RUC) / P (Pasaporte)
+  idLiquidador          String
+  nombreLiquidador      String
+  tipoLiquidacion       String    // Voluntaria o Forzosa
+  aplicaSeguro          String    // SI / NO / Justificación
+  fechaLineaBase        DateTime  // Fecha de inicio del operativo
+  fechaCorte            DateTime  // Fecha de corte del reporte actual
 
-  bienes            Bien[]
+  // Relaciones
+  bienes                Bien[]
   balances          Balance[]
-  gestionDepositos  GestionDeposito?
+  depositos             Deposito[]
+  carteras              CarteraJuicio[]
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 }
 
-// Módulo Dinámico (CRUD): Bienes
+// Módulo: DEPOSITOS
+model Deposito {
+  id                    Int       @id @default(autoincrement())
+  entidadId             Int
+  entidad               EntidadLiquidadora @relation(fields: [entidadId], references: [id])
+  
+  numeroRegistro        Int       // Campo 'No.' correlativo en Excel
+  tipoPersona           String?   // Natural / Jurídica
+  validadorId           String    // Validador ID Acreedor (Ej: 'NO REGISTRA ID', 'VALIDO')
+  tipoIdAcreedor        String?   // C / R / P
+  idAcreedor            String?
+  nombreAcreedor        String?
+  agenciaCanton         String?   // Cantón de la agencia
+  vinculado             String?   // SI / NO / X
+  tipoVinculado         String?   // Relación de vinculación
+  saldoTotal            Float     // Saldo Total PN / Acreencia
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+// Módulo: CARTERA Y JUICIOS
+model CarteraJuicio {
+  id                    Int       @id @default(autoincrement())
+  entidadId             Int
+  entidad               EntidadLiquidadora @relation(fields: [entidadId], references: [id])
+
+  codigoSocio           String?
+  tipoIdSocio           String?
+  validadorIdSocio      String?
+  numeroOperacion       String?
+  idCliente             String?
+  relacion              String?
+  nombreSocio           String?
+  estadoCivil           String?
+  saldoFecha            Float     // Saldo de cartera a la fecha
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+// Módulo: BIENES (CRUD)
 model Bien {
-  id                Int       @id @default(autoincrement())
-  entidadId         Int
-  entidad           EntidadLiquidadora @relation(fields: [entidadId], references: [id])
+  id                    Int       @id @default(autoincrement())
+  entidadId             Int
+  entidad               EntidadLiquidadora @relation(fields: [entidadId], references: [id])
   
-  tipoBien          String
-  descripcion       String
-  existenciaFisica  Boolean
-  numeroIdentificacion String
-  ubicacionCanton   String
-  saldoLibros       Float
-  valorAvaluo       Float
-  disponibilidad    String
+  tipoBien              String
+  descripcion           String
+  existenciaFisica      Boolean
+  numeroIdentificacion  String
+  ubicacionCanton       String
+  saldoLibros           Float
+  valorAvaluo           Float
+  disponibilidad        String
   
-  // Datos de venta (pueden ser nulos si no se ha vendido)
-  fechaVenta        DateTime?
-  valorVenta        Float?
-  tipoVenta         String?
-  compradorId       String?
-  razonSocialComprador String?
+  fechaVenta            DateTime?
+  valorVenta            Float?
+  tipoVenta             String?
+  compradorId           String?
+  razonSocialComprador  String?
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 }
 
-// Módulo Bloqueado/Calculado: Balances (Solo Lectura en UI para transaccional)
+// Módulo: BALANCES (Solo Lectura)
 model Balance {
-  id                Int       @id @default(autoincrement())
-  entidadId         Int
-  entidad           EntidadLiquidadora @relation(fields: [entidadId], references: [id])
+  id                    Int       @id @default(autoincrement())
+  entidadId             Int
+  entidad               EntidadLiquidadora @relation(fields: [entidadId], references: [id])
   
-  nivel             Int
-  codigoCuenta      String
-  nombreCuenta      String
-  saldoMes          Float     // Consolidado o calculado internamente
-  fechaRegistro     DateTime
+  nivel                 Int
+  codigoCuenta          String
+  nombreCuenta          String
+  saldoMes              Float
+  fechaRegistro         DateTime
 
-  createdAt         DateTime  @default(now())
-}
-
-// Módulo Consolidado: Gestión de Depósitos (Alimenta el Dashboard)
-model GestionDeposito {
-  id                Int       @id @default(autoincrement())
-  entidadId         Int       @unique
-  entidad           EntidadLiquidadora @relation(fields: [entidadId], references: [id])
-
-  sociosVinculados  Int       @default(0)
-  sociosNoIdentificados Int   @default(0)
-  sociosNoVinculados Int      @default(0)
-  acreenciasPendientes Float  @default(0)
-  
-  updatedAt         DateTime  @updatedAt
+  createdAt             DateTime  @default(now())
 }

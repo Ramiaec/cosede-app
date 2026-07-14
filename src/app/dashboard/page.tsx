@@ -3,8 +3,24 @@
 import { useState } from "react";
 import BienForm, { BienData } from "../../components/forms/BienForm";
 import ReadOnlyBalanceTable, { BalanceItem } from "../../components/ui/ReadOnlyBalanceTable";
+import InicioForm, { InicioData } from "../../components/forms/InicioForm";
+import DepositoForm, { DepositoData } from "../../components/forms/DepositoForm";
+import CarteraForm, { CarteraData } from "../../components/forms/CarteraForm";
 
-// Mock initial data matching the Excel sheets' structure
+// Initial Mock Config (INICIO)
+const INITIAL_INICIO: InicioData = {
+  rucCooperativa: "1790000000001",
+  razonSocial: "Cooperativa de Ahorro y Crédito COSEDE Ejemplo",
+  tipoIdLiquidador: "R",
+  idLiquidador: "1712345678001",
+  nombreLiquidador: "Ing. Juan Pérez Maldonado",
+  tipoLiquidacion: "Forzosa",
+  aplicaSeguro: "SI",
+  fechaLineaBase: "2019-12-31",
+  fechaCorte: "2026-06-30",
+};
+
+// Initial Mock Assets (BIENES)
 const INITIAL_BIENES: BienData[] = [
   {
     id: 1,
@@ -45,6 +61,78 @@ const INITIAL_BIENES: BienData[] = [
   },
 ];
 
+// Initial Mock Depositors (DEPOSITOS)
+const INITIAL_DEPOSITOS: DepositoData[] = [
+  {
+    id: 1,
+    numeroRegistro: 1,
+    tipoPersona: "Natural",
+    validadorId: "VALIDO",
+    tipoIdAcreedor: "C",
+    idAcreedor: "1718293847",
+    nombreAcreedor: "Morales Bastidas Alexandra María",
+    agenciaCanton: "Quito",
+    vinculado: "NO",
+    tipoVinculado: "",
+    saldoTotal: 2540.50,
+  },
+  {
+    id: 2,
+    numeroRegistro: 2,
+    tipoPersona: "Natural",
+    validadorId: "VALIDO",
+    tipoIdAcreedor: "C",
+    idAcreedor: "0928374615",
+    nombreAcreedor: "Castillo Torres Christian Fernando",
+    agenciaCanton: "Guayaquil",
+    vinculado: "SI",
+    tipoVinculado: "Vocal del Consejo de Administración",
+    saldoTotal: 15400.00,
+  },
+  {
+    id: 3,
+    numeroRegistro: 3,
+    tipoPersona: "Jurídica",
+    validadorId: "VALIDO",
+    tipoIdAcreedor: "R",
+    idAcreedor: "1792837465001",
+    nombreAcreedor: "Comercializadora del Pacífico Cía. Ltda.",
+    agenciaCanton: "Manta",
+    vinculado: "NO",
+    tipoVinculado: "",
+    saldoTotal: 45890.00,
+  },
+];
+
+// Initial Mock Credits (CARTERA Y JUICIOS)
+const INITIAL_CARTERA: CarteraData[] = [
+  {
+    id: 1,
+    codigoSocio: "SOC-001",
+    tipoIdSocio: "C",
+    validadorIdSocio: "VALIDO",
+    numeroOperacion: "CR-00109",
+    idCliente: "1728394857",
+    relacion: "DEUDOR",
+    nombreSocio: "Alvear Carrera Diego Francisco",
+    estadoCivil: "CASADO(A)",
+    saldoFecha: 8430.00,
+  },
+  {
+    id: 2,
+    codigoSocio: "SOC-002",
+    tipoIdSocio: "C",
+    validadorIdSocio: "VALIDO",
+    numeroOperacion: "CR-00115",
+    idCliente: "0918273645",
+    relacion: "DEUDOR",
+    nombreSocio: "Gómez Jurado María Elena",
+    estadoCivil: "SOLTERO(A)",
+    saldoFecha: 12500.00,
+  },
+];
+
+// Initial Mock Balances (BALANCES)
 const INITIAL_BALANCES: BalanceItem[] = [
   { id: 1, nivel: 1, codigoCuenta: "1", nombreCuenta: "ACTIVO", saldoMes: 1250430.22, fechaRegistro: "2026-06-30" },
   { id: 2, nivel: 2, codigoCuenta: "11", nombreCuenta: "FONDOS DISPONIBLES", saldoMes: 345120.15, fechaRegistro: "2026-06-30" },
@@ -54,127 +142,210 @@ const INITIAL_BALANCES: BalanceItem[] = [
   { id: 6, nivel: 2, codigoCuenta: "14", nombreCuenta: "BIENES REALIZABLES", saldoMes: 220000.00, fechaRegistro: "2026-06-30" },
 ];
 
+type TabType = "inicio" | "dashboard" | "depositos" | "cartera" | "bienes" | "balances" | "upload";
+
 export default function DashboardPage() {
+  const [activeTab, setActiveTab] = useState<TabType>("dashboard");
+  const [inicioData, setInicioData] = useState<InicioData>(INITIAL_INICIO);
   const [bienes, setBienes] = useState<BienData[]>(INITIAL_BIENES);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "bienes" | "balances" | "upload">("dashboard");
+  const [depositos, setDepositos] = useState<DepositoData[]>(INITIAL_DEPOSITOS);
+  const [cartera, setCartera] = useState<CarteraData[]>(INITIAL_CARTERA);
+
+  // Bienes states
   const [showAddBien, setShowAddBien] = useState(false);
   const [editingBien, setEditingBien] = useState<BienData | null>(null);
 
-  // States for Excel Upload Simulation
+  // Depositos states
+  const [showAddDeposito, setShowAddDeposito] = useState(false);
+  const [editingDeposito, setEditingDeposito] = useState<DepositoData | null>(null);
+
+  // Cartera states
+  const [showAddCartera, setShowAddCartera] = useState(false);
+  const [editingCartera, setEditingCartera] = useState<CarteraData | null>(null);
+
+  // Excel states
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
-  // Financial calculations from dynamic Bienes data
+  // Financial calculations in Real Time
   const totalBienesLibros = bienes.reduce((acc, curr) => acc + curr.saldoLibros, 0);
   const totalBienesAvaluo = bienes.reduce((acc, curr) => acc + curr.valorAvaluo, 0);
   const totalBienesVendidos = bienes
     .filter((b) => b.disponibilidad === "Vendido")
     .reduce((acc, curr) => acc + (curr.valorVenta || 0), 0);
 
-  // Handle Bien CRUD
+  const totalDepositosSaldos = depositos.reduce((acc, curr) => acc + curr.saldoTotal, 0);
+  const totalCarteraSaldos = cartera.reduce((acc, curr) => acc + curr.saldoFecha, 0);
+
+  // Bien CRUD
   const handleAddBien = (newBien: BienData) => {
-    setBienes((prev) => [
-      ...prev,
-      { ...newBien, id: prev.length + 1 },
-    ]);
+    setBienes((prev) => [...prev, { ...newBien, id: prev.length + 1 }]);
     setShowAddBien(false);
   };
-
   const handleEditBien = (updatedBien: BienData) => {
-    setBienes((prev) =>
-      prev.map((b) => (b.id === editingBien?.id ? { ...updatedBien, id: b.id } : b))
-    );
+    setBienes((prev) => prev.map((b) => (b.id === editingBien?.id ? { ...updatedBien, id: b.id } : b)));
     setEditingBien(null);
   };
-
   const handleDeleteBien = (id: number) => {
     if (confirm("¿Está seguro de eliminar este registro de bien realizable?")) {
       setBienes((prev) => prev.filter((b) => b.id !== id));
     }
   };
 
+  // Deposito CRUD
+  const handleAddDeposito = (newDep: DepositoData) => {
+    setDepositos((prev) => [...prev, { ...newDep, id: prev.length + 1 }]);
+    setShowAddDeposito(false);
+  };
+  const handleEditDeposito = (updatedDep: DepositoData) => {
+    setDepositos((prev) => prev.map((d) => (d.id === editingDeposito?.id ? { ...updatedDep, id: d.id } : d)));
+    setEditingDeposito(null);
+  };
+  const handleDeleteDeposito = (id: number) => {
+    if (confirm("¿Está seguro de eliminar este registro de depósito?")) {
+      setDepositos((prev) => prev.filter((d) => d.id !== id));
+    }
+  };
+
+  // Cartera CRUD
+  const handleAddCartera = (newCart: CarteraData) => {
+    setCartera((prev) => [...prev, { ...newCart, id: prev.length + 1 }]);
+    setShowAddCartera(false);
+  };
+  const handleEditCartera = (updatedCart: CarteraData) => {
+    setCartera((prev) => prev.map((c) => (c.id === editingCartera?.id ? { ...updatedCart, id: c.id } : c)));
+    setEditingCartera(null);
+  };
+  const handleDeleteCartera = (id: number) => {
+    if (confirm("¿Está seguro de eliminar esta operación de cartera?")) {
+      setCartera((prev) => prev.filter((c) => c.id !== id));
+    }
+  };
+
+  const handleInicioSubmit = (data: InicioData) => {
+    setInicioData(data);
+    alert("Configuración de INICIO guardada correctamente en el estado local de la aplicación.");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800 font-sans">
       {/* Sidebar Navigation */}
       <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col border-r border-slate-800 shadow-xl">
-        {/* Brand/Logo */}
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
           <div className="bg-blue-600 p-2 rounded-xl text-white shadow-md shadow-blue-500/20">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div>
-            <h1 className="font-bold text-md leading-none tracking-tight">COSEDE - 1000</h1>
-            <span className="text-xs text-slate-500">Gestión de Liquidación</span>
+            <h1 className="font-bold text-md leading-none tracking-tight">COSEDE APP</h1>
+            <span className="text-xs text-slate-500">Automatización Excel</span>
           </div>
         </div>
 
-        {/* Navigation Items */}
+        {/* Navigation items */}
         <nav className="flex-1 px-4 py-6 space-y-2">
+          {/* INICIO */}
           <button
-            onClick={() => { setActiveTab("dashboard"); setEditingBien(null); setShowAddBien(false); }}
+            onClick={() => setActiveTab("inicio")}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
-              activeTab === "dashboard"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/10"
-                : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+              activeTab === "inicio" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            1. Inicio / Configuración
+          </button>
+
+          {/* DASHBOARD */}
+          <button
+            onClick={() => setActiveTab("dashboard")}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              activeTab === "dashboard" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
             }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" />
             </svg>
-            Dashboard (REPORTE)
+            2. Dashboard (REPORTE)
           </button>
+
+          {/* DEPOSITOS */}
           <button
-            onClick={() => { setActiveTab("bienes"); setEditingBien(null); setShowAddBien(false); }}
+            onClick={() => setActiveTab("depositos")}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
-              activeTab === "bienes"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/10"
-                : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+              activeTab === "depositos" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            3. Depósitos (Acreedores)
+          </button>
+
+          {/* CARTERA */}
+          <button
+            onClick={() => setActiveTab("cartera")}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              activeTab === "cartera" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            4. Cartera y Juicios
+          </button>
+
+          {/* BIENES */}
+          <button
+            onClick={() => setActiveTab("bienes")}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              activeTab === "bienes" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
             }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 114 0v2m-4 0h4m-2 3v2m0 1v3m0 0h.01" />
             </svg>
-            Bienes Realizables (CRUD)
+            5. Bienes Realizables
           </button>
+
+          {/* BALANCES */}
           <button
-            onClick={() => { setActiveTab("balances"); setEditingBien(null); setShowAddBien(false); }}
+            onClick={() => setActiveTab("balances")}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
-              activeTab === "balances"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/10"
-                : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+              activeTab === "balances" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
             }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Balances (Solo Lectura)
+            6. Balances (Solo Lectura)
           </button>
+
+          {/* EXCEL UPLOAD */}
           <button
-            onClick={() => { setActiveTab("upload"); setEditingBien(null); setShowAddBien(false); }}
+            onClick={() => setActiveTab("upload")}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
-              activeTab === "upload"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/10"
-                : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+              activeTab === "upload" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
             }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Cargar Excel (Ejemplo)
+            7. Importar Excel de Prueba
           </button>
         </nav>
 
-        {/* User profile / Institution Tag */}
+        {/* User profile info */}
         <div className="p-4 border-t border-slate-800 flex items-center gap-3 bg-slate-950/20">
           <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center font-bold text-blue-500 border border-slate-700/50">
             LIQ
           </div>
           <div>
-            <p className="text-sm font-bold leading-none text-slate-200">Liquidador Principal</p>
-            <span className="text-xs text-slate-500">COSEDE Auditoria</span>
+            <p className="text-sm font-bold leading-none text-slate-200">{inicioData.nombreLiquidador.split(" ")[1] || "Liquidador"}</p>
+            <span className="text-xs text-slate-500">RUC: {inicioData.rucCooperativa}</span>
           </div>
         </div>
       </aside>
@@ -184,88 +355,85 @@ export default function DashboardPage() {
         {/* Top Navbar */}
         <header className="h-20 bg-white border-b border-slate-150 px-8 flex items-center justify-between shadow-sm sticky top-0 z-40 backdrop-blur-md bg-white/90">
           <div className="flex items-center gap-4">
-            <span className="text-xs font-semibold px-3 py-1 bg-slate-100 rounded-full text-slate-500 border border-slate-200/50">
-              Cooperativa en Liquidación RUC: 1790000000001
+            <span className="text-xs font-bold px-3 py-1 bg-slate-100 rounded-full text-slate-500 border border-slate-200/50">
+              {inicioData.razonSocial}
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-xs text-slate-400">Último corte de datos</p>
-              <p className="text-sm font-bold text-slate-700">30 de Junio, 2026</p>
-            </div>
+          <div className="text-right">
+            <p className="text-xs text-slate-400">Fecha Corte Operativo</p>
+            <p className="text-sm font-bold text-slate-700">{inicioData.fechaCorte}</p>
           </div>
         </header>
 
         {/* Page Content wrapper */}
         <div className="p-8 max-w-7xl w-full mx-auto flex-1 space-y-8">
-          {/* TAB 1: DASHBOARD / REPORTE */}
+          {/* TAB: INICIO */}
+          {activeTab === "inicio" && (
+            <div className="space-y-6 animate-fadeIn">
+              <InicioForm initialData={inicioData} onSubmit={handleInicioSubmit} />
+            </div>
+          )}
+
+          {/* TAB: DASHBOARD / REPORTE */}
           {activeTab === "dashboard" && (
             <div className="space-y-8 animate-fadeIn">
-              {/* Header Info */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/80 pb-6">
                 <div>
                   <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Reporte Consolidado de Liquidación</h2>
-                  <p className="text-slate-500 mt-1">Indicadores consolidados en tiempo real del proceso liquidatorio.</p>
+                  <p className="text-slate-500 mt-1">Valores consolidados automáticamente de todos los módulos.</p>
                 </div>
                 <button
                   onClick={() => window.print()}
-                  className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl shadow-lg shadow-slate-950/10 text-sm font-bold transition-all flex items-center gap-2 self-start md:self-auto active:scale-95"
+                  className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl shadow-lg active:scale-95 transition-all text-sm font-bold"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-3a2 2 0 00-2-2H9a2 2 0 00-2 2v3a2 2 0 002 2zm5-17v2m-6 2H5" />
-                  </svg>
-                  Imprimir / Exportar Reporte
+                  Exportar Reporte (PDF)
                 </button>
               </div>
 
               {/* KPI Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 relative overflow-hidden group hover:shadow-md transition-all duration-200">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-50 to-transparent rounded-bl-full -mr-4 -mt-4 opacity-50 group-hover:scale-110 transition-transform"></div>
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Activos (Libros)</h4>
-                  <div className="mt-4 flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-900">
-                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-                        INITIAL_BALANCES[0].saldoMes
-                      )}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* Total Activos */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 relative overflow-hidden group">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Activos en Libros</h4>
+                  <div className="mt-4">
+                    <span className="text-2xl font-black text-slate-900">
+                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(INITIAL_BALANCES[0].saldoMes)}
                     </span>
                   </div>
-                  <p className="mt-2 text-xs text-slate-500 font-semibold flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Dato consolidado del Balance de Corte
-                  </p>
+                  <p className="mt-2 text-xs text-slate-400">Balance contable consolidado</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 relative overflow-hidden group hover:shadow-md transition-all duration-200">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-50 to-transparent rounded-bl-full -mr-4 -mt-4 opacity-50 group-hover:scale-110 transition-transform"></div>
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Bienes Realizables (Avalúo)</h4>
-                  <div className="mt-4 flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-900">
-                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-                        totalBienesAvaluo
-                      )}
+                {/* Total Bienes Avaluo */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 relative overflow-hidden group">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Avalúo de Bienes</h4>
+                  <div className="mt-4">
+                    <span className="text-2xl font-black text-slate-900">
+                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totalBienesAvaluo)}
                     </span>
                   </div>
-                  <p className="mt-2 text-xs text-emerald-600 font-semibold flex items-center gap-1">
-                    <span>Libros: {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totalBienesLibros)}</span>
-                  </p>
+                  <p className="mt-2 text-xs text-blue-600 font-semibold">{bienes.length} bienes registrados</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 relative overflow-hidden group hover:shadow-md transition-all duration-200">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-amber-50 to-transparent rounded-bl-full -mr-4 -mt-4 opacity-50 group-hover:scale-110 transition-transform"></div>
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Recuperación por Ventas</h4>
-                  <div className="mt-4 flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-900">
-                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-                        totalBienesVendidos
-                      )}
+                {/* Total Depositos */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 relative overflow-hidden group">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Depósitos</h4>
+                  <div className="mt-4">
+                    <span className="text-2xl font-black text-slate-900">
+                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totalDepositosSaldos)}
                     </span>
                   </div>
-                  <p className="mt-2 text-xs text-amber-600 font-semibold">
-                    Dinero ingresado por realización de activos
-                  </p>
+                  <p className="mt-2 text-xs text-emerald-600 font-semibold">{depositos.length} acreedores registrados</p>
+                </div>
+
+                {/* Total Cartera */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 relative overflow-hidden group">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Saldo de Cartera</h4>
+                  <div className="mt-4">
+                    <span className="text-2xl font-black text-slate-900">
+                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totalCarteraSaldos)}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-purple-600 font-semibold">{cartera.length} socios deudores</p>
                 </div>
               </div>
 
@@ -273,16 +441,16 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Real-time recovery simulation */}
                 <div className="bg-white p-8 rounded-2xl border border-slate-200/60 shadow-sm space-y-6">
-                  <h3 className="text-lg font-bold text-slate-900">Avance de Realización de Bienes</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Realización de Bienes Realizables</h3>
                   <div className="space-y-4">
                     <div>
                       <div className="flex justify-between text-sm font-semibold text-slate-600 mb-2">
-                        <span>Bienes Vendidos (Avalúo pericial realizado)</span>
+                        <span>Bienes Vendidos (Ingreso Neto)</span>
                         <span>
-                          {Math.round(
-                            (bienes.filter((b) => b.disponibilidad === "Vendido").length / bienes.length) * 100
-                          )}
-                          % del Lote
+                          {bienes.length > 0
+                            ? Math.round((bienes.filter((b) => b.disponibilidad === "Vendido").length / bienes.length) * 100)
+                            : 0}
+                          % del total
                         </span>
                       </div>
                       <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
@@ -290,24 +458,25 @@ export default function DashboardPage() {
                           className="bg-blue-600 h-full rounded-full transition-all duration-500"
                           style={{
                             width: `${
-                              (bienes.filter((b) => b.disponibilidad === "Vendido").length / bienes.length) * 100
+                              bienes.length > 0
+                                ? (bienes.filter((b) => b.disponibilidad === "Vendido").length / bienes.length) * 100
+                                : 0
                             }%`,
                           }}
                         ></div>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4 pt-4">
-                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-xs text-slate-400 font-bold block">DISPONIBLES</span>
-                        <span className="text-xl font-black text-slate-700">
-                          {bienes.filter((b) => b.disponibilidad === "Disponible").length} activos
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex justify-between">
+                      <div>
+                        <span className="text-xs text-slate-400 font-bold block">VALOR EN VENTAS</span>
+                        <span className="text-lg font-black text-slate-700">
+                          {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totalBienesVendidos)}
                         </span>
                       </div>
-                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-xs text-slate-400 font-bold block">VENDIDOS</span>
-                        <span className="text-xl font-black text-slate-700">
-                          {bienes.filter((b) => b.disponibilidad === "Vendido").length} activos
+                      <div className="text-right">
+                        <span className="text-xs text-slate-400 font-bold block">BIENES RESTANTES</span>
+                        <span className="text-lg font-black text-slate-700">
+                          {bienes.filter((b) => b.disponibilidad !== "Vendido").length} activos
                         </span>
                       </div>
                     </div>
@@ -316,21 +485,23 @@ export default function DashboardPage() {
 
                 {/* Audit & Consolidation Summary */}
                 <div className="bg-white p-8 rounded-2xl border border-slate-200/60 shadow-sm space-y-6">
-                  <h3 className="text-lg font-bold text-slate-900">Resumen Consolidador del Proceso</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Resumen y Cobertura de Seguro</h3>
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-                      <span className="text-sm font-medium text-slate-600">Total Bienes Registrados</span>
-                      <span className="text-sm font-bold text-slate-800">{bienes.length}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-                      <span className="text-sm font-medium text-slate-600">Existencia Física Verificada</span>
-                      <span className="text-sm font-bold text-slate-800">
-                        {bienes.filter((b) => b.existenciaFisica).length} / {bienes.length}
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                      <span className="text-sm text-slate-600">Acreedores Vinculados</span>
+                      <span className="text-sm font-bold text-red-600">
+                        {depositos.filter((d) => d.vinculado === "SI").length} (Excluidos de COSEDE)
                       </span>
                     </div>
-                    <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-                      <span className="text-sm font-medium text-slate-600">Cuentas Contables en Balance</span>
-                      <span className="text-sm font-bold text-slate-800">{INITIAL_BALANCES.length}</span>
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                      <span className="text-sm text-slate-600">Acreedores Validados (Válidos)</span>
+                      <span className="text-sm font-bold text-emerald-600">
+                        {depositos.filter((d) => d.validadorId === "VALIDO").length} de {depositos.length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-sm text-slate-600">Estado del Liquidador</span>
+                      <span className="text-sm font-semibold text-slate-700">{inicioData.nombreLiquidador}</span>
                     </div>
                   </div>
                 </div>
@@ -338,7 +509,169 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 2: BIENES REALIZABLES (CRUD) */}
+          {/* TAB: DEPOSITOS (CRUD) */}
+          {activeTab === "depositos" && (
+            <div className="space-y-6 animate-fadeIn">
+              {showAddDeposito || editingDeposito ? (
+                <div>
+                  <button
+                    onClick={() => { setShowAddDeposito(false); setEditingDeposito(null); }}
+                    className="mb-4 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+                  >
+                    ← Volver a la Lista
+                  </button>
+                  <DepositoForm
+                    initialData={editingDeposito || undefined}
+                    onSubmit={editingDeposito ? handleEditDeposito : handleAddDeposito}
+                    onCancel={() => { setShowAddDeposito(false); setEditingDeposito(null); }}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900">Gestión de Depósitos (Acreedores)</h2>
+                      <p className="text-sm text-slate-500 mt-1">Registrar y mantener la base de datos de socios depositantes.</p>
+                    </div>
+                    <button
+                      onClick={() => setShowAddDeposito(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transition-all text-sm"
+                    >
+                      + Registrar Acreedor
+                    </button>
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left text-slate-600">
+                        <thead className="bg-slate-50 text-slate-700 uppercase text-xs font-semibold border-b border-slate-200">
+                          <tr>
+                            <th className="px-6 py-4">No.</th>
+                            <th className="px-6 py-4">Identificación</th>
+                            <th className="px-6 py-4">Acreedor</th>
+                            <th className="px-6 py-4">Cantón</th>
+                            <th className="px-6 py-4 text-center">Vinculado</th>
+                            <th className="px-6 py-4 text-right">Saldo Total ($)</th>
+                            <th className="px-6 py-4 text-center">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {depositos.map((dep) => (
+                            <tr key={dep.id} className="hover:bg-slate-50/50">
+                              <td className="px-6 py-4 font-mono text-xs">{dep.numeroRegistro}</td>
+                              <td className="px-6 py-4 font-mono text-xs text-slate-500">{dep.idAcreedor || "N/A"}</td>
+                              <td className="px-6 py-4 font-semibold text-slate-900">{dep.nombreAcreedor}</td>
+                              <td className="px-6 py-4 text-slate-500">{dep.agenciaCanton}</td>
+                              <td className="px-6 py-4 text-center">
+                                {dep.vinculado === "SI" ? (
+                                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">SÍ</span>
+                                ) : (
+                                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">NO</span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 text-right font-bold text-slate-900">
+                                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(dep.saldoTotal)}
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <div className="flex justify-center gap-2">
+                                  <button onClick={() => setEditingDeposito(dep)} className="p-1 hover:bg-slate-100 rounded text-slate-600">
+                                    Editar
+                                  </button>
+                                  <button onClick={() => dep.id && handleDeleteDeposito(dep.id)} className="p-1 hover:bg-red-50 rounded text-red-600">
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: CARTERA (CRUD) */}
+          {activeTab === "cartera" && (
+            <div className="space-y-6 animate-fadeIn">
+              {showAddCartera || editingCartera ? (
+                <div>
+                  <button
+                    onClick={() => { setShowAddCartera(false); setEditingCartera(null); }}
+                    className="mb-4 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+                  >
+                    ← Volver a la Lista
+                  </button>
+                  <CarteraForm
+                    initialData={editingCartera || undefined}
+                    onSubmit={editingCartera ? handleEditCartera : handleAddCartera}
+                    onCancel={() => { setShowAddCartera(false); setEditingCartera(null); }}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900">Gestión de Cartera y Juicios de Crédito</h2>
+                      <p className="text-sm text-slate-500 mt-1">Registrar socios deudores, garantes y saldos por cobrar.</p>
+                    </div>
+                    <button
+                      onClick={() => setShowAddCartera(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transition-all text-sm"
+                    >
+                      + Registrar Socio/Operación
+                    </button>
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left text-slate-600">
+                        <thead className="bg-slate-50 text-slate-700 uppercase text-xs font-semibold border-b border-slate-200">
+                          <tr>
+                            <th className="px-6 py-4">Código Socio</th>
+                            <th className="px-6 py-4">Identificación</th>
+                            <th className="px-6 py-4">Socio / Deudor</th>
+                            <th className="px-6 py-4">Operación</th>
+                            <th className="px-6 py-4">Relación</th>
+                            <th className="px-6 py-4 text-right">Saldo ($)</th>
+                            <th className="px-6 py-4 text-center">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {cartera.map((cart) => (
+                            <tr key={cart.id} className="hover:bg-slate-50/50">
+                              <td className="px-6 py-4 font-mono text-xs">{cart.codigoSocio}</td>
+                              <td className="px-6 py-4 font-mono text-xs text-slate-500">{cart.idCliente}</td>
+                              <td className="px-6 py-4 font-semibold text-slate-900">{cart.nombreSocio}</td>
+                              <td className="px-6 py-4 font-mono text-xs">{cart.numeroOperacion}</td>
+                              <td className="px-6 py-4 text-xs font-bold text-slate-500">{cart.relacion}</td>
+                              <td className="px-6 py-4 text-right font-bold text-slate-900">
+                                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cart.saldoFecha)}
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <div className="flex justify-center gap-2">
+                                  <button onClick={() => setEditingCartera(cart)} className="p-1 hover:bg-slate-100 rounded text-slate-600">
+                                    Editar
+                                  </button>
+                                  <button onClick={() => cart.id && handleDeleteCartera(cart.id)} className="p-1 hover:bg-red-50 rounded text-red-600">
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: BIENES (CRUD) */}
           {activeTab === "bienes" && (
             <div className="space-y-8 animate-fadeIn">
               {showAddBien || editingBien ? (
@@ -372,7 +705,7 @@ export default function DashboardPage() {
                     </div>
                     <button
                       onClick={() => setShowAddBien(true)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transition-all text-sm"
                     >
                       + Registrar Bien
                     </button>
@@ -402,45 +735,25 @@ export default function DashboardPage() {
                               <td className="px-6 py-4 max-w-xs truncate text-slate-600">{bien.descripcion}</td>
                               <td className="px-6 py-4 text-slate-500">{bien.ubicacionCanton}</td>
                               <td className="px-6 py-4 text-right font-medium text-slate-800">
-                                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-                                  bien.saldoLibros
-                                )}
+                                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(bien.saldoLibros)}
                               </td>
                               <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-                                  bien.valorAvaluo
-                                )}
+                                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(bien.valorAvaluo)}
                               </td>
                               <td className="px-6 py-4 text-center">
                                 {bien.existenciaFisica ? (
-                                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200/40">
-                                    Sí
-                                  </span>
+                                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200/40">Sí</span>
                                 ) : (
-                                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200/40">
-                                    No
-                                  </span>
+                                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200/40">No</span>
                                 )}
                               </td>
                               <td className="px-6 py-4 text-center">
                                 <div className="flex items-center justify-center gap-2">
-                                  <button
-                                    onClick={() => setEditingBien(bien)}
-                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors"
-                                    title="Editar"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
+                                  <button onClick={() => setEditingBien(bien)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors">
+                                    Editar
                                   </button>
-                                  <button
-                                    onClick={() => bien.id && handleDeleteBien(bien.id)}
-                                    className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 transition-colors"
-                                    title="Eliminar"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
+                                  <button onClick={() => bien.id && handleDeleteBien(bien.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 transition-colors">
+                                    Eliminar
                                   </button>
                                 </div>
                               </td>
@@ -455,7 +768,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 3: BALANCES (SOLO LECTURA) */}
+          {/* TAB: BALANCES (SOLO LECTURA) */}
           {activeTab === "balances" && (
             <div className="space-y-6 animate-fadeIn">
               <div className="border-b border-slate-200/80 pb-4">
@@ -466,7 +779,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 4: CARGAR EXCEL DE EJEMPLO */}
+          {/* TAB: UPLOAD EXCEL */}
           {activeTab === "upload" && (
             <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
               <div className="border-b border-slate-200/80 pb-4">
@@ -512,12 +825,7 @@ export default function DashboardPage() {
                         <p className="text-xs text-slate-400">{(uploadFile.size / 1024).toFixed(2)} KB</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => setUploadFile(null)}
-                      className="text-xs text-red-500 hover:text-red-700 font-semibold"
-                    >
-                      Remover
-                    </button>
+                    <button onClick={() => setUploadFile(null)} className="text-xs text-red-500 hover:text-red-700 font-semibold">Remover</button>
                   </div>
                 )}
 
@@ -543,26 +851,11 @@ export default function DashboardPage() {
                             valorAvaluo: 145000,
                             disponibilidad: "Disponible",
                           },
-                          {
-                            id: prev.length + 2,
-                            tipoBien: "Equipos de Computación",
-                            descripcion: "Servidores HP ProLiant Gen10",
-                            existenciaFisica: true,
-                            numeroIdentificacion: "EXCEL-HP-88",
-                            ubicacionCanton: "Quito",
-                            saldoLibros: 15400,
-                            valorAvaluo: 14000,
-                            disponibilidad: "Vendido",
-                            fechaVenta: "2026-07-10",
-                            valorVenta: 14500,
-                            compradorId: "1790088776001",
-                            razonSocialComprador: "Tecnologías Globales Cía. Ltda.",
-                          }
                         ]);
                         setUploadFile(null);
                       }, 2000);
                     }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl shadow-lg shadow-blue-500/10 active:scale-95 transition-all text-sm disabled:opacity-50 disabled:pointer-events-none"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl shadow-lg transition-all text-sm disabled:opacity-50"
                   >
                     {isUploading ? "Procesando Archivo..." : "Importar Datos de Ejemplo"}
                   </button>
@@ -570,12 +863,7 @@ export default function DashboardPage() {
 
                 {uploadSuccess && (
                   <div className="bg-green-50 border border-green-200 text-green-800 rounded-xl p-4 flex items-center gap-3">
-                    <svg className="w-5 h-5 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p className="text-sm font-semibold">
-                      ¡Excel importado correctamente! Se han cargado 2 nuevos bienes realizables y se actualizaron los indicadores del Dashboard.
-                    </p>
+                    <p className="text-sm font-semibold">¡Excel importado correctamente! Se actualizaron los indicadores del Dashboard.</p>
                   </div>
                 )}
               </div>
