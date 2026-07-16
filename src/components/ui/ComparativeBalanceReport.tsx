@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { BalanceItem } from "./ReadOnlyBalanceTable";
 
 interface ComparativeBalanceReportProps {
@@ -14,6 +15,11 @@ export default function ComparativeBalanceReport({ balances, cooperativaName }: 
   const [comparePeriod, setComparePeriod] = useState<string>("");
   const [maxLevel, setMaxLevel] = useState<number>(6);
   const [hideZeros, setHideZeros] = useState<boolean>(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Extract available months
   const periodosMensuales = balances.length > 0 
@@ -56,9 +62,9 @@ export default function ComparativeBalanceReport({ balances, cooperativaName }: 
         Generar Reporte Comparativo (PDF)
       </button>
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm print:hidden">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+      {mounted && showModal && createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm print:hidden">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-slate-800 mb-4">Configurar Reporte Comparativo</h2>
             
             <div className="space-y-4 mb-6">
@@ -99,12 +105,14 @@ export default function ComparativeBalanceReport({ balances, cooperativaName }: 
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Printable View */}
-      <div className="hidden print:block absolute top-0 left-0 w-full min-h-screen bg-white text-black p-8 z-[9999]">
-        <div className="text-center mb-8 border-b-2 border-slate-800 pb-6">
+      {mounted && createPortal(
+        <div className="hidden print:block absolute top-0 left-0 w-full min-h-screen bg-white text-black p-8 z-[9999]">
+          <div className="text-center mb-8 border-b-2 border-slate-800 pb-6">
           <h1 className="text-2xl font-bold uppercase tracking-widest text-slate-900">{cooperativaName || "COOPERATIVA EN LIQUIDACIÓN"}</h1>
           <h2 className="text-lg font-semibold text-slate-700 mt-2">ESTADO DE SITUACIÓN FINANCIERA COMPARATIVO</h2>
           <p className="text-sm font-medium text-slate-500 mt-1">
@@ -168,7 +176,9 @@ export default function ComparativeBalanceReport({ balances, cooperativaName }: 
             Auditoría
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
+      )}
       
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
