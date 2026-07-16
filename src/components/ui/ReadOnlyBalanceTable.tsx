@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ComparativeBalanceReport from "./ComparativeBalanceReport";
 
 export interface BalanceItem {
   id: number;
@@ -14,9 +15,10 @@ export interface BalanceItem {
 
 interface ReadOnlyBalanceTableProps {
   balances?: BalanceItem[];
+  cooperativaName: string;
 }
 
-export default function ReadOnlyBalanceTable({ balances = [] }: ReadOnlyBalanceTableProps) {
+export default function ReadOnlyBalanceTable({ balances = [], cooperativaName }: ReadOnlyBalanceTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredBalances = balances.filter(
@@ -86,6 +88,7 @@ export default function ReadOnlyBalanceTable({ balances = [] }: ReadOnlyBalanceT
           <span className="text-slate-300">•</span>
           <span>Fecha corte: 31/12/2025</span>
         </div>
+        <ComparativeBalanceReport balances={balances} cooperativaName={cooperativaName} />
       </div>
 
       {/* Table Container */}

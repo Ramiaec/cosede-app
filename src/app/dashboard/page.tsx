@@ -1222,7 +1222,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               {balances.length > 0 ? (
-                <ReadOnlyBalanceTable balances={balances} />
+                <ReadOnlyBalanceTable balances={balances} cooperativaName={inicioData.razonSocial} />
               ) : (
                 <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400 font-semibold text-sm shadow-sm">
                   No hay registros de balances contables. Cargue una plantilla de balances en la opción de Importar Excel.
