@@ -7,7 +7,8 @@ export interface BalanceItem {
   nivel: number;
   codigoCuenta: string;
   nombreCuenta: string;
-  saldoMes: number;
+  saldoInicial: number;
+  saldosMensuales: { fecha: string; valor: number }[];
   fechaRegistro: string;
 }
 
@@ -95,7 +96,12 @@ export default function ReadOnlyBalanceTable({ balances = [] }: ReadOnlyBalanceT
               <th className="px-6 py-3.5">Código Cuenta</th>
               <th className="px-6 py-3.5">Nivel</th>
               <th className="px-6 py-3.5">Nombre de Cuenta</th>
-              <th className="px-6 py-3.5 text-right">Saldo Mes ($)</th>
+              <th className="px-6 py-3.5 text-right">Saldo Inicial ($)</th>
+              {balances.length > 0 && balances[0].saldosMensuales?.map((sm) => (
+                <th key={sm.fecha} className="px-6 py-3.5 text-right">
+                  Saldo {sm.fecha} ($)
+                </th>
+              ))}
               <th className="px-6 py-3.5 text-center">Estado</th>
             </tr>
           </thead>
@@ -129,8 +135,16 @@ export default function ReadOnlyBalanceTable({ balances = [] }: ReadOnlyBalanceT
                       {new Intl.NumberFormat("en-US", {
                         style: "currency",
                         currency: "USD",
-                      }).format(bal.saldoMes)}
+                      }).format(bal.saldoInicial)}
                     </td>
+                    {bal.saldosMensuales?.map((sm, i) => (
+                      <td key={i} className={`px-6 py-4 text-right font-medium ${isGroup ? "text-slate-900" : "text-slate-600"}`}>
+                        {new Intl.NumberFormat("en-US", {
+                          style: "currency",
+                          currency: "USD",
+                        }).format(sm.valor)}
+                      </td>
+                    ))}
                     <td className="px-6 py-4 text-center">
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200/50">
                         <svg className="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

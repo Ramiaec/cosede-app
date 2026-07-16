@@ -124,12 +124,12 @@ const INITIAL_CARTERA: CarteraData[] = [
 
 // Initial Mock Balances (BALANCES)
 const INITIAL_BALANCES: BalanceItem[] = [
-  { id: 1, nivel: 1, codigoCuenta: "1", nombreCuenta: "ACTIVO", saldoMes: 1250430.22, fechaRegistro: "2026-06-30" },
-  { id: 2, nivel: 2, codigoCuenta: "11", nombreCuenta: "FONDOS DISPONIBLES", saldoMes: 345120.15, fechaRegistro: "2026-06-30" },
-  { id: 3, nivel: 4, codigoCuenta: "1101", nombreCuenta: "Caja", saldoMes: 4500.00, fechaRegistro: "2026-06-30" },
-  { id: 4, nivel: 6, codigoCuenta: "110105", nombreCuenta: "Efectivo", saldoMes: 4500.00, fechaRegistro: "2026-06-30" },
-  { id: 5, nivel: 2, codigoCuenta: "12", nombreCuenta: "OPERACIONES DE CRÉDITO", saldoMes: 685310.07, fechaRegistro: "2026-06-30" },
-  { id: 6, nivel: 2, codigoCuenta: "14", nombreCuenta: "BIENES REALIZABLES", saldoMes: 220000.00, fechaRegistro: "2026-06-30" },
+  { id: 1, nivel: 1, codigoCuenta: "1", nombreCuenta: "ACTIVO", saldoInicial: 1250430.22, saldosMensuales: [], fechaRegistro: "2026-06-30" },
+  { id: 2, nivel: 2, codigoCuenta: "11", nombreCuenta: "FONDOS DISPONIBLES", saldoInicial: 345120.15, saldosMensuales: [], fechaRegistro: "2026-06-30" },
+  { id: 3, nivel: 4, codigoCuenta: "1101", nombreCuenta: "Caja", saldoInicial: 4500.00, saldosMensuales: [], fechaRegistro: "2026-06-30" },
+  { id: 4, nivel: 6, codigoCuenta: "110105", nombreCuenta: "Efectivo", saldoInicial: 4500.00, saldosMensuales: [], fechaRegistro: "2026-06-30" },
+  { id: 5, nivel: 2, codigoCuenta: "12", nombreCuenta: "OPERACIONES DE CRÉDITO", saldoInicial: 685310.07, saldosMensuales: [], fechaRegistro: "2026-06-30" },
+  { id: 6, nivel: 2, codigoCuenta: "14", nombreCuenta: "BIENES REALIZABLES", saldoInicial: 220000.00, saldosMensuales: [], fechaRegistro: "2026-06-30" },
 ];
 
 type TabType = "inicio" | "dashboard" | "depositos" | "cartera" | "bienes" | "balances" | "upload";
@@ -255,6 +255,11 @@ export default function DashboardPage() {
   const [successDepositos, setSuccessDepositos] = useState(false);
   const [successCartera, setSuccessCartera] = useState(false);
 
+  const [nuevoBalanceFecha, setNuevoBalanceFecha] = useState("");
+  const [nuevoBalanceFile, setNuevoBalanceFile] = useState<File | null>(null);
+  const [loadingNuevoBalance, setLoadingNuevoBalance] = useState(false);
+  const [successNuevoBalance, setSuccessNuevoBalance] = useState(false);
+
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
@@ -277,7 +282,7 @@ export default function DashboardPage() {
   const totalCarteraSaldos = cartera.reduce((acc, curr) => acc + curr.saldoFecha, 0);
   
   // Total Activos from dynamic balances
-  const totalActivosLibros = balances.find((b) => b.codigoCuenta === "1")?.saldoMes || 0;
+  const totalActivosLibros = balances.find((b) => b.codigoCuenta === "1")?.saldoInicial || 0;
 
   // Bien CRUD
   const handleAddBien = (newBien: BienData) => {
@@ -395,7 +400,8 @@ export default function DashboardPage() {
             nivel: parseInt(r["NIVEL"]) || 1,
             codigoCuenta: String(rawCodigo),
             nombreCuenta: String(rawCuenta),
-            saldoMes: parseFloat(rawSaldo) || 0,
+            saldoInicial: parseFloat(rawSaldo) || 0,
+            saldosMensuales: [],
             fechaRegistro: String(r["FECHA REGISTRO"] || r["FECHA_REGISTRO"] || "2026-06-30"),
           };
         });
@@ -410,6 +416,61 @@ export default function DashboardPage() {
       }
     };
     reader.readAsArrayBuffer(fileBalances);
+  };
+
+  const handleUploadNuevoBalance = () => {
+    if (!nuevoBalanceFile || !nuevoBalanceFecha) {
+      alert("Por favor seleccione un archivo y una fecha de corte (Mes y Año).");
+      return;
+    }
+    setLoadingNuevoBalance(true);
+    setSuccessNuevoBalance(false);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { range: 1, defval: "" });
+
+        const mappedRows = rows.map((r: any) => {
+          const rawCodigo = r["CODIGO"] !== undefined ? r["CODIGO"] : (r["CODIGO CUENTA"] || r["CODIGO_CUENTA"] || "");
+          const rawSaldo = r["mes 1"] !== undefined ? r["mes 1"] : (r["MES 1"] || r["SALDO MES"] || r["SALDO_MES"] || r["SALDO"] || 0);
+          return { codigoCuenta: String(rawCodigo), valor: parseFloat(rawSaldo) || 0 };
+        });
+
+        setBalances((prevBalances) =>
+          prevBalances.map((bal) => {
+            const foundRow = mappedRows.find((mr) => mr.codigoCuenta === bal.codigoCuenta);
+            const newValor = foundRow ? foundRow.valor : 0;
+            
+            const existingIndex = bal.saldosMensuales?.findIndex((sm) => sm.fecha === nuevoBalanceFecha);
+            const updatedSaldos = [...(bal.saldosMensuales || [])];
+            
+            if (existingIndex !== undefined && existingIndex >= 0) {
+              updatedSaldos[existingIndex] = { fecha: nuevoBalanceFecha, valor: newValor };
+            } else {
+              updatedSaldos.push({ fecha: nuevoBalanceFecha, valor: newValor });
+            }
+            
+            updatedSaldos.sort((a, b) => a.fecha.localeCompare(b.fecha));
+            
+            return {
+              ...bal,
+              saldosMensuales: updatedSaldos,
+            };
+          })
+        );
+        
+        setSuccessNuevoBalance(true);
+        setNuevoBalanceFile(null);
+      } catch (err) {
+        alert("Error al parsear el nuevo balance. Verifique el formato.");
+      } finally {
+        setLoadingNuevoBalance(false);
+      }
+    };
+    reader.readAsArrayBuffer(nuevoBalanceFile);
   };
 
   const handleUploadDepositos = () => {
@@ -655,6 +716,22 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-400">Fecha Corte Operativo</p>
               <p className="text-sm font-bold text-slate-700">{inicioData.fechaCorte}</p>
             </div>
+            <button
+              onClick={() => {
+                localStorage.setItem("cosede_bienes", JSON.stringify(bienes));
+                localStorage.setItem("cosede_depositos", JSON.stringify(depositos));
+                localStorage.setItem("cosede_cartera", JSON.stringify(cartera));
+                localStorage.setItem("cosede_balances", JSON.stringify(balances));
+                localStorage.setItem("cosede_inicio_data", JSON.stringify(inicioData));
+                alert("✓ Cambios guardados permanentemente.");
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold text-xs uppercase tracking-wider transition-all duration-200 active:scale-95 shadow-sm"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+              Guardar Cambios
+            </button>
             <div className="border-l border-slate-200 h-8"></div>
             <button
               onClick={handleLogout}
@@ -1108,9 +1185,41 @@ export default function DashboardPage() {
           {/* TAB: BALANCES (SOLO LECTURA) */}
           {activeTab === "balances" && (
             <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-slate-200/80 pb-4">
-                <h2 className="text-2xl font-bold text-slate-900">Balances y Contabilidad</h2>
-                <p className="text-sm text-slate-500 mt-1">Registros cargados desde el balance de corte oficial de la cooperativa.</p>
+              <div className="border-b border-slate-200/80 pb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Balances y Contabilidad</h2>
+                  <p className="text-sm text-slate-500 mt-1">Registros cargados desde el balance de corte oficial de la cooperativa.</p>
+                </div>
+                
+                {/* Add new Monthly Balance Panel */}
+                <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex flex-col sm:flex-row items-end gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Fecha de Corte</label>
+                    <input
+                      type="month"
+                      value={nuevoBalanceFecha}
+                      onChange={(e) => setNuevoBalanceFecha(e.target.value)}
+                      className="text-xs border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Subir Balance Mensual</label>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xlsm"
+                      onChange={(e) => setNuevoBalanceFile(e.target.files?.[0] || null)}
+                      className="text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer w-48"
+                    />
+                  </div>
+                  <button
+                    onClick={handleUploadNuevoBalance}
+                    disabled={loadingNuevoBalance}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold active:scale-95 transition-all whitespace-nowrap disabled:opacity-50"
+                  >
+                    {loadingNuevoBalance ? "Cargando..." : "Agregar Mensual"}
+                  </button>
+                  {successNuevoBalance && <span className="text-emerald-500 text-xs font-bold">✓</span>}
+                </div>
               </div>
               {balances.length > 0 ? (
                 <ReadOnlyBalanceTable balances={balances} />
