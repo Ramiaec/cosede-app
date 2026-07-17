@@ -27,7 +27,8 @@ export default function DevolucionAcreencias({
   const [fechaPagoCosede, setFechaPagoCosede] = useState<string>(new Date().toISOString().split("T")[0]);
 
   // Fase 2 states
-  const [montoDisponibleGap, setMontoDisponibleGap] = useState<number>(0);
+  const [montoMaximoAPagarGap, setMontoMaximoAPagarGap] = useState<number>(0);
+  const [fechaPagoGap, setFechaPagoGap] = useState<string>(new Date().toISOString().split("T")[0]);
 
   // Fase 3 states
   const [recursosDisponibles, setRecursosDisponibles] = useState<number>(0);
@@ -131,17 +132,13 @@ export default function DevolucionAcreencias({
       return;
     }
 
-    if (montoDisponibleGap <= 0) {
-      setErrorLogs(["El monto disponible debe ser mayor a 0."]);
+    if (montoMaximoAPagarGap <= 0) {
+      setErrorLogs(["El monto máximo a pagar debe ser mayor a 0."]);
       return;
     }
 
-    const totalDeudaGap = gapsPendientes.reduce((sum, d) => sum + (d.saldoPendiente !== undefined ? d.saldoPendiente : d.saldoTotal), 0);
     const updatedDepositos = [...depositos];
-    const fechaPago = new Date().toISOString().split("T")[0];
-
-    // Distribuir el pago. Si alcanza para todo, se paga el saldo pendiente. Si no, a prorrata.
-    const factorProrrata = montoDisponibleGap >= totalDeudaGap ? 1 : montoDisponibleGap / totalDeudaGap;
+    const fechaPago = fechaPagoGap;
 
     let totalPagado = 0;
 
@@ -150,7 +147,7 @@ export default function DevolucionAcreencias({
       if (depIndex === -1) return;
 
       const saldoAnterior = gapDep.saldoPendiente !== undefined ? gapDep.saldoPendiente : gapDep.saldoTotal;
-      const montoAPagar = parseFloat((saldoAnterior * factorProrrata).toFixed(2));
+      const montoAPagar = Math.min(saldoAnterior, montoMaximoAPagarGap);
       
       if (montoAPagar <= 0) return;
 
@@ -173,8 +170,8 @@ export default function DevolucionAcreencias({
     setDepositos(updatedDepositos);
     setErrorLogs([]);
     setWarningLogs([]);
-    setSuccessMessage(`Pago Fase 2 (GAP) realizado. Total distribuido: $${totalPagado.toFixed(2)} a prorrata (${(factorProrrata * 100).toFixed(2)}%).`);
-    setMontoDisponibleGap(0);
+    setSuccessMessage(`Pago Fase 2 (GAP) realizado. Total pagado en esta fase: $${totalPagado.toFixed(2)}.`);
+    setMontoMaximoAPagarGap(0);
   };
 
   // FASE 3: Pago Proporcional (Orden 4)
@@ -336,20 +333,29 @@ export default function DevolucionAcreencias({
         {activeFase === 2 && (
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-slate-800">Fase 2: Pagos a Grupos de Atención Prioritaria (GAP)</h3>
-            <p className="text-sm text-slate-600">Este pago se distribuirá únicamente entre los acreedores con la marca GAP = "SI". Si el monto no cubre la totalidad, se pagará a prorrata.</p>
+            <p className="text-sm text-slate-600">Este pago se distribuirá únicamente entre los acreedores con la marca GAP = "SI". Se pagará a cada acreedor como máximo el monto indicado a continuación (o su saldo pendiente si es menor).</p>
             
-            <div className="flex gap-4 items-end mt-4">
-              <div className="flex-1 space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase">Monto Disponible a Repartir ($)</label>
+            <div className="flex flex-col sm:flex-row gap-4 items-end mt-4">
+              <div className="w-full sm:w-1/3 space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">Fecha de este Pago</label>
+                <input
+                  type="date"
+                  value={fechaPagoGap}
+                  onChange={(e) => setFechaPagoGap(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-semibold"
+                />
+              </div>
+              <div className="w-full sm:w-1/3 space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">Monto Máximo a Pagar ($)</label>
                 <input
                   type="number"
-                  value={montoDisponibleGap || ""}
-                  onChange={(e) => setMontoDisponibleGap(parseFloat(e.target.value) || 0)}
+                  value={montoMaximoAPagarGap || ""}
+                  onChange={(e) => setMontoMaximoAPagarGap(parseFloat(e.target.value) || 0)}
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-semibold"
                   placeholder="0.00"
                 />
               </div>
-              <button onClick={handlePagoGap} className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-bold shadow-md transition-all">
+              <button onClick={handlePagoGap} className="w-full sm:w-1/3 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-bold shadow-md transition-all">
                 Ejecutar Pago GAP
               </button>
             </div>

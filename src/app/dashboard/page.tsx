@@ -248,6 +248,7 @@ export default function DashboardPage() {
   const [showAddDeposito, setShowAddDeposito] = useState(false);
   const [editingDeposito, setEditingDeposito] = useState<DepositoData | null>(null);
   const [searchTermDepositos, setSearchTermDepositos] = useState("");
+  const [showSoloPendientes, setShowSoloPendientes] = useState(false);
 
   // Cartera states
   const [showAddCartera, setShowAddCartera] = useState(false);
@@ -952,7 +953,16 @@ export default function DashboardPage() {
 
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     {/* Search Bar */}
-                    <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-end">
+                    <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={showSoloPendientes}
+                          onChange={(e) => setShowSoloPendientes(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                        />
+                        Mostrar solo con saldo pendiente
+                      </label>
                       <div className="relative w-full max-w-sm">
                         <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
@@ -1013,11 +1023,11 @@ export default function DashboardPage() {
                           </thead>
                           <tbody className="divide-y divide-slate-100">
                             {depositos
-                              .filter(
-                                (dep) =>
-                                  dep.nombreAcreedor.toLowerCase().includes(searchTermDepositos.toLowerCase()) ||
-                                  (dep.idAcreedor && dep.idAcreedor.includes(searchTermDepositos))
-                              )
+                              .filter((dep) => {
+                                const matchesSearch = dep.nombreAcreedor.toLowerCase().includes(searchTermDepositos.toLowerCase()) || (dep.idAcreedor && dep.idAcreedor.includes(searchTermDepositos));
+                                const matchesPendiente = showSoloPendientes ? (dep.saldoPendiente !== undefined ? dep.saldoPendiente : dep.saldoTotal) > 0 : true;
+                                return matchesSearch && matchesPendiente;
+                              })
                               .map((dep) => (
                               <tr key={dep.id} className="hover:bg-slate-50/50">
                                 <td className="px-4 py-4 font-mono text-xs">{dep.numeroRegistro}</td>
@@ -1046,34 +1056,82 @@ export default function DashboardPage() {
                                 <td className="px-4 py-4 text-right font-bold text-slate-900">
                                   {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(dep.saldoTotal)}
                                 </td>
-                                <td className="px-4 py-4 text-right text-xs text-emerald-700 font-semibold bg-emerald-50/50">
+                                <td className="px-4 py-4 text-right text-xs text-emerald-700 font-semibold bg-emerald-50/50 align-top">
                                   {(() => {
                                     if (!dep.pagos) return "-";
                                     const pagos = dep.pagos.filter(p => p.fase.startsWith("Fase 1"));
                                     if (pagos.length === 0) return "-";
                                     const total = pagos.reduce((sum, p) => sum + p.monto, 0);
-                                    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total);
+                                    if (pagos.length === 1) return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total);
+                                    
+                                    return (
+                                      <details className="cursor-pointer group text-right">
+                                        <summary className="list-none outline-none group-open:mb-1 hover:text-emerald-900">
+                                          {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total)} <span className="text-[9px] opacity-70">▼</span>
+                                        </summary>
+                                        <div className="space-y-1 pt-1 border-t border-emerald-200">
+                                          {pagos.map((p, i) => (
+                                            <div key={i} className="flex justify-between text-[10px] gap-2">
+                                              <span className="opacity-70">{p.fecha}</span>
+                                              <span className="font-bold">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(p.monto)}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </details>
+                                    );
                                   })()}
                                 </td>
-                                <td className="px-4 py-4 text-right text-xs text-purple-700 font-semibold bg-purple-50/50">
+                                <td className="px-4 py-4 text-right text-xs text-purple-700 font-semibold bg-purple-50/50 align-top">
                                   {(() => {
                                     if (!dep.pagos) return "-";
                                     const pagos = dep.pagos.filter(p => p.fase.startsWith("Fase 2"));
                                     if (pagos.length === 0) return "-";
                                     const total = pagos.reduce((sum, p) => sum + p.monto, 0);
-                                    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total);
+                                    if (pagos.length === 1) return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total);
+
+                                    return (
+                                      <details className="cursor-pointer group text-right">
+                                        <summary className="list-none outline-none group-open:mb-1 hover:text-purple-900">
+                                          {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total)} <span className="text-[9px] opacity-70">▼</span>
+                                        </summary>
+                                        <div className="space-y-1 pt-1 border-t border-purple-200">
+                                          {pagos.map((p, i) => (
+                                            <div key={i} className="flex justify-between text-[10px] gap-2">
+                                              <span className="opacity-70">{p.fecha}</span>
+                                              <span className="font-bold">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(p.monto)}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </details>
+                                    );
                                   })()}
                                 </td>
-                                <td className="px-4 py-4 text-right text-xs text-orange-700 font-semibold bg-orange-50/50">
+                                <td className="px-4 py-4 text-right text-xs text-orange-700 font-semibold bg-orange-50/50 align-top">
                                   {(() => {
                                     if (!dep.pagos) return "-";
                                     const pagos = dep.pagos.filter(p => p.fase.startsWith("Fase 3"));
                                     if (pagos.length === 0) return "-";
                                     const total = pagos.reduce((sum, p) => sum + p.monto, 0);
-                                    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total);
+                                    if (pagos.length === 1) return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total);
+
+                                    return (
+                                      <details className="cursor-pointer group text-right">
+                                        <summary className="list-none outline-none group-open:mb-1 hover:text-orange-900">
+                                          {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total)} <span className="text-[9px] opacity-70">▼</span>
+                                        </summary>
+                                        <div className="space-y-1 pt-1 border-t border-orange-200">
+                                          {pagos.map((p, i) => (
+                                            <div key={i} className="flex justify-between text-[10px] gap-2">
+                                              <span className="opacity-70">{p.fecha}</span>
+                                              <span className="font-bold">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(p.monto)}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </details>
+                                    );
                                   })()}
                                 </td>
-                                <td className="px-4 py-4 text-right font-black text-blue-700 bg-blue-50/30">
+                                <td className="px-4 py-4 text-right font-black text-blue-700 bg-blue-50/30 align-top">
                                   {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(dep.saldoPendiente !== undefined ? dep.saldoPendiente : dep.saldoTotal)}
                                 </td>
                                 <td className="px-4 py-4 text-center">
