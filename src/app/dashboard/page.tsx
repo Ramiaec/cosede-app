@@ -944,6 +944,8 @@ export default function DashboardPage() {
                               <th className="px-4 py-4">Cantón Agencia</th>
                               <th className="px-4 py-4 text-center">Vinculado</th>
                               <th className="px-4 py-4">Tipo Vinculado</th>
+                              <th className="px-4 py-4 text-center">GAP</th>
+                              <th className="px-4 py-4">Tipo GAP</th>
                               <th className="px-4 py-4 text-right">Saldo Total ($)</th>
                               <th className="px-4 py-4 text-center">Acciones</th>
                             </tr>
@@ -966,6 +968,14 @@ export default function DashboardPage() {
                                   )}
                                 </td>
                                 <td className="px-4 py-4 text-slate-500 text-xs">{dep.tipoVinculado || "-"}</td>
+                                <td className="px-4 py-4 text-center">
+                                  {dep.gap === "SI" ? (
+                                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">SÍ</span>
+                                  ) : (
+                                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">NO</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-4 text-slate-500 text-xs">{dep.tipoGap || "-"}</td>
                                 <td className="px-4 py-4 text-right font-bold text-slate-900">
                                   {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(dep.saldoTotal)}
                                 </td>
@@ -1265,7 +1275,7 @@ export default function DashboardPage() {
                         Descargar Plantilla
                       </a>
                     </div>
-                    <p className="text-xs text-slate-500">Formato requerido: No., TIPO PERSONA, VALIDADOR ID DEPOSITANTE, ID DEPOSITANTE, ACREEDOR, SALDO TOTAL, etc.</p>
+                    <p className="text-xs text-slate-500">Formato requerido: No., TIPO PERSONA, VALIDADOR ID DEPOSITANTE, ID DEPOSITANTE, ACREEDOR, VINCULADO, GAP, TIPO GAP, SALDO TOTAL, etc.</p>
                   </div>
 
                   <div className="space-y-3">
