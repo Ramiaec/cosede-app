@@ -52,8 +52,8 @@ export default function DevolucionAcreencias({
         const fechaPago = new Date().toISOString().split("T")[0];
 
         data.forEach((row, index) => {
-          const idAcreedor = String(row["ID ACREEDOR"] || "").trim();
-          const montoPagado = parseFloat(row["MONTO PAGADO SEGURO"]) || 0;
+          const idAcreedor = String(row["IDENTIFICACION"] || "").trim();
+          const montoPagado = parseFloat(row["DEPOSITOS CUBIERTOS"]) || 0;
 
           if (!idAcreedor || montoPagado <= 0) return;
 
@@ -107,7 +107,7 @@ export default function DevolucionAcreencias({
           setSuccessMessage(`Fase 1 completada con éxito. Se actualizó el saldo de depositantes y la subrogación de COSEDE sumó $${totalSubrogadoCosede.toFixed(2)}.`);
         }
       } catch (err) {
-        setErrorLogs(["Error al procesar el archivo Excel. Asegúrate de que tiene las columnas 'ID ACREEDOR' y 'MONTO PAGADO SEGURO'."]);
+        setErrorLogs(["Error al procesar el archivo Excel. Asegúrate de que tiene las columnas 'IDENTIFICACION' y 'DEPOSITOS CUBIERTOS'."]);
       }
     };
     reader.readAsBinaryString(file);
@@ -282,7 +282,7 @@ export default function DevolucionAcreencias({
         {activeFase === 1 && (
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-slate-800">Fase 1: Seguro de Depósitos (COSEDE)</h3>
-            <p className="text-sm text-slate-600">Suba el archivo Excel con los pagos realizados por el Seguro de Depósitos. <strong>Columnas obligatorias:</strong> ID ACREEDOR y MONTO PAGADO SEGURO.</p>
+            <p className="text-sm text-slate-600">Suba el archivo Excel con los pagos realizados por el Seguro de Depósitos. <strong>Columnas obligatorias:</strong> IDENTIFICACION y DEPOSITOS CUBIERTOS.</p>
             <div className="mt-4 p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 text-center hover:bg-slate-100 transition-colors">
               <input type="file" accept=".xlsx,.xls" id="cosede-upload" className="hidden" onChange={handleUploadCosede} />
               <label htmlFor="cosede-upload" className="cursor-pointer flex flex-col items-center">
