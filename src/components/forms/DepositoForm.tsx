@@ -13,6 +13,8 @@ export interface DepositoData {
   agenciaCanton: string;
   vinculado: string;
   tipoVinculado: string;
+  gap: string;
+  tipoGap: string;
   saldoTotal: number;
 }
 
@@ -33,6 +35,8 @@ export default function DepositoForm({ initialData, onSubmit, onCancel }: Deposi
     agenciaCanton: initialData?.agenciaCanton || "",
     vinculado: initialData?.vinculado || "NO",
     tipoVinculado: initialData?.tipoVinculado || "",
+    gap: initialData?.gap || "NO",
+    tipoGap: initialData?.tipoGap || "",
     saldoTotal: initialData?.saldoTotal || 0,
   });
 
@@ -185,6 +189,40 @@ export default function DepositoForm({ initialData, onSubmit, onCancel }: Deposi
             placeholder="Ej. Directivo, Cónyuge"
             className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all duration-200"
           />
+        </div>
+
+        {/* GAP */}
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-slate-700">GAP (Grupo de Atención Prioritaria)</label>
+          <select
+            name="gap"
+            value={formData.gap}
+            onChange={handleChange}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all duration-200"
+          >
+            <option value="NO">NO</option>
+            <option value="SI">SÍ</option>
+          </select>
+        </div>
+
+        {/* Tipo GAP */}
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-slate-700">Tipo GAP (Si aplica)</label>
+          <select
+            name="tipoGap"
+            value={formData.tipoGap}
+            onChange={handleChange}
+            disabled={formData.gap === "NO"}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all duration-200 disabled:opacity-50"
+          >
+            <option value="">Seleccione tipo GAP...</option>
+            <option value="1.- Personas adultas mayores">1.- Personas adultas mayores</option>
+            <option value="2.- Niñas, niños y adolescentes">2.- Niñas, niños y adolescentes</option>
+            <option value="3.- Mujeres embarazadas">3.- Mujeres embarazadas</option>
+            <option value="4.- Personas con discapacidad">4.- Personas con discapacidad</option>
+            <option value="5.- Personas privadas de libertad">5.- Personas privadas de libertad</option>
+            <option value="6.- Quienes adolezcan de enfermedades catastróficas o de alta complejidad">6.- Enfermedades catastróficas o alta complejidad</option>
+          </select>
         </div>
 
         {/* Saldo Total */}

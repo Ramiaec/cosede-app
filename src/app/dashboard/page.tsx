@@ -64,6 +64,8 @@ const INITIAL_DEPOSITOS: DepositoData[] = [
     agenciaCanton: "Quito",
     vinculado: "NO",
     tipoVinculado: "",
+    gap: "NO",
+    tipoGap: "",
     saldoTotal: 2540.50,
   },
   {
@@ -77,6 +79,8 @@ const INITIAL_DEPOSITOS: DepositoData[] = [
     agenciaCanton: "Guayaquil",
     vinculado: "SI",
     tipoVinculado: "Vocal del Consejo de Administración",
+    gap: "NO",
+    tipoGap: "",
     saldoTotal: 15400.00,
   },
   {
@@ -90,6 +94,8 @@ const INITIAL_DEPOSITOS: DepositoData[] = [
     agenciaCanton: "Manta",
     vinculado: "NO",
     tipoVinculado: "",
+    gap: "SI",
+    tipoGap: "1.- Personas adultas mayores",
     saldoTotal: 45890.00,
   },
 ];
@@ -496,6 +502,8 @@ export default function DashboardPage() {
           agenciaCanton: r["AGENCIA COAC EN LIQUIDACION (CANTON)"] || "",
           vinculado: r["VINCULADO"] || "NO",
           tipoVinculado: r["TIPO VINCULADO"] || "",
+          gap: r["GAP"] || "NO",
+          tipoGap: r["TIPO GAP"] || "",
           saldoTotal: parseFloat(r["SALDO TOTAL"]) || 0,
         }));
 
