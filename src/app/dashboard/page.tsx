@@ -983,9 +983,30 @@ export default function DashboardPage() {
                               <th className="px-4 py-4 text-center">GAP</th>
                               <th className="px-4 py-4">Tipo GAP</th>
                               <th className="px-4 py-4 text-right">Saldo Total ($)</th>
-                              <th className="px-4 py-4 text-right">Pago COSEDE</th>
-                              <th className="px-4 py-4 text-right">Pago GAP</th>
-                              <th className="px-4 py-4 text-right">Pago Proporcional</th>
+                              <th className="px-4 py-4 text-right">
+                                Pago COSEDE
+                                {(() => {
+                                  let latest = "";
+                                  depositos.forEach(d => d.pagos?.forEach(p => { if (p.fase.startsWith("Fase 1") && p.fecha > latest) latest = p.fecha; }));
+                                  return latest ? <div className="text-[10px] font-normal normal-case text-slate-400 mt-0.5">({latest})</div> : null;
+                                })()}
+                              </th>
+                              <th className="px-4 py-4 text-right">
+                                Pago GAP
+                                {(() => {
+                                  let latest = "";
+                                  depositos.forEach(d => d.pagos?.forEach(p => { if (p.fase.startsWith("Fase 2") && p.fecha > latest) latest = p.fecha; }));
+                                  return latest ? <div className="text-[10px] font-normal normal-case text-slate-400 mt-0.5">({latest})</div> : null;
+                                })()}
+                              </th>
+                              <th className="px-4 py-4 text-right">
+                                Pago Proporcional
+                                {(() => {
+                                  let latest = "";
+                                  depositos.forEach(d => d.pagos?.forEach(p => { if (p.fase.startsWith("Fase 3") && p.fecha > latest) latest = p.fecha; }));
+                                  return latest ? <div className="text-[10px] font-normal normal-case text-slate-400 mt-0.5">({latest})</div> : null;
+                                })()}
+                              </th>
                               <th className="px-4 py-4 text-right text-blue-700">Saldo Pendiente ($)</th>
                               <th className="px-4 py-4 text-center">Acciones</th>
                             </tr>
@@ -1031,7 +1052,7 @@ export default function DashboardPage() {
                                     const pagos = dep.pagos.filter(p => p.fase.startsWith("Fase 1"));
                                     if (pagos.length === 0) return "-";
                                     const total = pagos.reduce((sum, p) => sum + p.monto, 0);
-                                    return `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total)} (${pagos[pagos.length - 1].fecha})`;
+                                    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total);
                                   })()}
                                 </td>
                                 <td className="px-4 py-4 text-right text-xs text-purple-700 font-semibold bg-purple-50/50">
@@ -1040,7 +1061,7 @@ export default function DashboardPage() {
                                     const pagos = dep.pagos.filter(p => p.fase.startsWith("Fase 2"));
                                     if (pagos.length === 0) return "-";
                                     const total = pagos.reduce((sum, p) => sum + p.monto, 0);
-                                    return `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total)} (${pagos[pagos.length - 1].fecha})`;
+                                    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total);
                                   })()}
                                 </td>
                                 <td className="px-4 py-4 text-right text-xs text-orange-700 font-semibold bg-orange-50/50">
@@ -1049,7 +1070,7 @@ export default function DashboardPage() {
                                     const pagos = dep.pagos.filter(p => p.fase.startsWith("Fase 3"));
                                     if (pagos.length === 0) return "-";
                                     const total = pagos.reduce((sum, p) => sum + p.monto, 0);
-                                    return `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total)} (${pagos[pagos.length - 1].fecha})`;
+                                    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total);
                                   })()}
                                 </td>
                                 <td className="px-4 py-4 text-right font-black text-blue-700 bg-blue-50/30">
