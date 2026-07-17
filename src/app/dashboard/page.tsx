@@ -983,6 +983,9 @@ export default function DashboardPage() {
                               <th className="px-4 py-4 text-center">GAP</th>
                               <th className="px-4 py-4">Tipo GAP</th>
                               <th className="px-4 py-4 text-right">Saldo Total ($)</th>
+                              <th className="px-4 py-4 text-right">Pago COSEDE</th>
+                              <th className="px-4 py-4 text-right">Pago GAP</th>
+                              <th className="px-4 py-4 text-right">Pago Proporcional</th>
                               <th className="px-4 py-4 text-right text-blue-700">Saldo Pendiente ($)</th>
                               <th className="px-4 py-4 text-center">Acciones</th>
                             </tr>
@@ -1021,6 +1024,33 @@ export default function DashboardPage() {
                                 <td className="px-4 py-4 text-slate-500 text-xs">{dep.tipoGap || "-"}</td>
                                 <td className="px-4 py-4 text-right font-bold text-slate-900">
                                   {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(dep.saldoTotal)}
+                                </td>
+                                <td className="px-4 py-4 text-right text-xs text-emerald-700 font-semibold bg-emerald-50/50">
+                                  {(() => {
+                                    if (!dep.pagos) return "-";
+                                    const pagos = dep.pagos.filter(p => p.fase.startsWith("Fase 1"));
+                                    if (pagos.length === 0) return "-";
+                                    const total = pagos.reduce((sum, p) => sum + p.monto, 0);
+                                    return `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total)} (${pagos[pagos.length - 1].fecha})`;
+                                  })()}
+                                </td>
+                                <td className="px-4 py-4 text-right text-xs text-purple-700 font-semibold bg-purple-50/50">
+                                  {(() => {
+                                    if (!dep.pagos) return "-";
+                                    const pagos = dep.pagos.filter(p => p.fase.startsWith("Fase 2"));
+                                    if (pagos.length === 0) return "-";
+                                    const total = pagos.reduce((sum, p) => sum + p.monto, 0);
+                                    return `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total)} (${pagos[pagos.length - 1].fecha})`;
+                                  })()}
+                                </td>
+                                <td className="px-4 py-4 text-right text-xs text-orange-700 font-semibold bg-orange-50/50">
+                                  {(() => {
+                                    if (!dep.pagos) return "-";
+                                    const pagos = dep.pagos.filter(p => p.fase.startsWith("Fase 3"));
+                                    if (pagos.length === 0) return "-";
+                                    const total = pagos.reduce((sum, p) => sum + p.monto, 0);
+                                    return `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(total)} (${pagos[pagos.length - 1].fecha})`;
+                                  })()}
                                 </td>
                                 <td className="px-4 py-4 text-right font-black text-blue-700 bg-blue-50/30">
                                   {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(dep.saldoPendiente !== undefined ? dep.saldoPendiente : dep.saldoTotal)}
