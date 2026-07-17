@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 
+export interface PagoAcreencia {
+  id: string;
+  fecha: string;
+  fase: string;
+  monto: number;
+}
+
 export interface DepositoData {
   id?: number;
   numeroRegistro: number;
@@ -16,6 +23,8 @@ export interface DepositoData {
   gap: string;
   tipoGap: string;
   saldoTotal: number;
+  saldoPendiente?: number;
+  pagos?: PagoAcreencia[];
 }
 
 interface DepositoFormProps {
@@ -38,14 +47,27 @@ export default function DepositoForm({ initialData, onSubmit, onCancel }: Deposi
     gap: initialData?.gap || "NO",
     tipoGap: initialData?.tipoGap || "",
     saldoTotal: initialData?.saldoTotal || 0,
+    saldoPendiente: initialData?.saldoPendiente !== undefined ? initialData.saldoPendiente : initialData?.saldoTotal || 0,
+    pagos: initialData?.pagos || [],
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === "saldoTotal" || name === "numeroRegistro" ? parseFloat(value) || 0 : value,
-    }));
+    setFormData((prev) => {
+      const isNumeric = name === "saldoTotal" || name === "numeroRegistro";
+      const val = isNumeric ? parseFloat(value) || 0 : value;
+      
+      const updated: any = {
+        ...prev,
+        [name]: val,
+      };
+
+      if (name === "saldoTotal") {
+        updated.saldoPendiente = val;
+      }
+
+      return updated;
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {

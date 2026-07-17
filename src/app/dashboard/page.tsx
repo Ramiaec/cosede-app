@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import BienForm, { BienData } from "../../components/forms/BienForm";
 import ReadOnlyBalanceTable, { BalanceItem } from "../../components/ui/ReadOnlyBalanceTable";
+import DevolucionAcreencias from "../../components/ui/DevolucionAcreencias";
 import InicioForm, { InicioData } from "../../components/forms/InicioForm";
 import DepositoForm, { DepositoData } from "../../components/forms/DepositoForm";
 import CarteraForm, { CarteraData } from "../../components/forms/CarteraForm";
@@ -67,6 +68,8 @@ const INITIAL_DEPOSITOS: DepositoData[] = [
     gap: "NO",
     tipoGap: "",
     saldoTotal: 2540.50,
+    saldoPendiente: 2540.50,
+    pagos: [],
   },
   {
     id: 2,
@@ -82,6 +85,8 @@ const INITIAL_DEPOSITOS: DepositoData[] = [
     gap: "NO",
     tipoGap: "",
     saldoTotal: 15400.00,
+    saldoPendiente: 15400.00,
+    pagos: [],
   },
   {
     id: 3,
@@ -97,6 +102,8 @@ const INITIAL_DEPOSITOS: DepositoData[] = [
     gap: "SI",
     tipoGap: "1.- Personas adultas mayores",
     saldoTotal: 45890.00,
+    saldoPendiente: 45890.00,
+    pagos: [],
   },
 ];
 
@@ -138,7 +145,7 @@ const INITIAL_BALANCES: BalanceItem[] = [
   { id: 6, nivel: 2, codigoCuenta: "14", nombreCuenta: "BIENES REALIZABLES", saldoInicial: 220000.00, saldosMensuales: [], fechaRegistro: "2026-06-30" },
 ];
 
-type TabType = "inicio" | "dashboard" | "depositos" | "cartera" | "bienes" | "balances" | "upload";
+type TabType = "inicio" | "dashboard" | "depositos" | "cartera" | "bienes" | "balances" | "upload" | "devolucion";
 
 export default function DashboardPage() {
   const { user, logout, loading: authLoading } = useAuth();
@@ -683,6 +690,19 @@ export default function DashboardPage() {
             </svg>
             7. Importar Excel
           </button>
+
+          {/* DEVOLUCION (Prelacion de Pagos) */}
+          <button
+            onClick={() => setActiveTab("devolucion")}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-250 ${
+              activeTab === "devolucion" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            8. Devolución Acreencias
+          </button>
         </nav>
 
         {/* User profile info & Logout */}
@@ -963,6 +983,7 @@ export default function DashboardPage() {
                               <th className="px-4 py-4 text-center">GAP</th>
                               <th className="px-4 py-4">Tipo GAP</th>
                               <th className="px-4 py-4 text-right">Saldo Total ($)</th>
+                              <th className="px-4 py-4 text-right text-blue-700">Saldo Pendiente ($)</th>
                               <th className="px-4 py-4 text-center">Acciones</th>
                             </tr>
                           </thead>
@@ -1000,6 +1021,9 @@ export default function DashboardPage() {
                                 <td className="px-4 py-4 text-slate-500 text-xs">{dep.tipoGap || "-"}</td>
                                 <td className="px-4 py-4 text-right font-bold text-slate-900">
                                   {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(dep.saldoTotal)}
+                                </td>
+                                <td className="px-4 py-4 text-right font-black text-blue-700 bg-blue-50/30">
+                                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(dep.saldoPendiente !== undefined ? dep.saldoPendiente : dep.saldoTotal)}
                                 </td>
                                 <td className="px-4 py-4 text-center">
                                   <div className="flex justify-center gap-2 text-xs">
@@ -1484,6 +1508,16 @@ export default function DashboardPage() {
                 </button>
               </div>
             </div>
+          )}
+
+          {/* TAB: DEVOLUCION (PRELACION DE PAGOS) */}
+          {activeTab === "devolucion" && (
+            <DevolucionAcreencias 
+              depositos={depositos}
+              setDepositos={setDepositos}
+              inicioData={inicioData}
+              setInicioData={setInicioData}
+            />
           )}
         </div>
       </main>

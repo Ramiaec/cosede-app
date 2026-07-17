@@ -12,6 +12,7 @@ export interface InicioData {
   aplicaSeguro: string;
   fechaLineaBase: string;
   fechaCorte: string;
+  contingenteCosede?: number;
 }
 
 interface InicioFormProps {
@@ -30,6 +31,7 @@ export default function InicioForm({ initialData, onSubmit }: InicioFormProps) {
     aplicaSeguro: initialData?.aplicaSeguro || "SI",
     fechaLineaBase: initialData?.fechaLineaBase || "",
     fechaCorte: initialData?.fechaCorte || "",
+    contingenteCosede: initialData?.contingenteCosede || 0,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
