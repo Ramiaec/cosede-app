@@ -20,7 +20,11 @@ export default function DevolucionAcreencias({
 }: DevolucionAcreenciasProps) {
   const [activeFase, setActiveFase] = useState<number>(1);
   const [errorLogs, setErrorLogs] = useState<string[]>([]);
+  const [warningLogs, setWarningLogs] = useState<string[]>([]);
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Fase 1 states
+  const [fechaPagoCosede, setFechaPagoCosede] = useState<string>(new Date().toISOString().split("T")[0]);
 
   // Fase 2 states
   const [montoDisponibleGap, setMontoDisponibleGap] = useState<number>(0);
@@ -47,9 +51,10 @@ export default function DevolucionAcreencias({
         const data = XLSX.utils.sheet_to_json(ws) as any[];
 
         let newErrors: string[] = [];
+        let newWarnings: string[] = [];
         let updatedDepositos = [...depositos];
         let totalSubrogadoCosede = 0;
-        const fechaPago = new Date().toISOString().split("T")[0];
+        const fechaPago = fechaPagoCosede;
 
         data.forEach((row, index) => {
           const idAcreedor = String(row["IDENTIFICACION"] || "").trim();
@@ -59,19 +64,21 @@ export default function DevolucionAcreencias({
 
           const depIndex = updatedDepositos.findIndex((d) => d.idAcreedor === idAcreedor);
           if (depIndex === -1) {
-            newErrors.push(`Fila ${index + 2}: No se encontró el ID Acreedor ${idAcreedor}.`);
+            newWarnings.push(`Fila ${index + 2}: No se encontró el ID Acreedor ${idAcreedor}. Se omitió.`);
             return;
           }
 
           const dep = updatedDepositos[depIndex];
 
           if (dep.vinculado === "SI") {
-            newErrors.push(`Fila ${index + 2}: ERROR CRÍTICO. El acreedor ${dep.nombreAcreedor} (${idAcreedor}) es VINCULADO. No procede el pago de COSEDE.`);
+            newWarnings.push(`Fila ${index + 2}: ALERTA. El acreedor ${dep.nombreAcreedor} (${idAcreedor}) es VINCULADO. No procede el pago de COSEDE. Se omitió.`);
             return;
           }
 
-          if (montoPagado > (dep.saldoPendiente || dep.saldoTotal)) {
-            newErrors.push(`Fila ${index + 2}: El monto a pagar (${montoPagado}) supera el saldo pendiente del acreedor ${dep.nombreAcreedor}.`);
+          const saldoAnterior = dep.saldoPendiente !== undefined ? dep.saldoPendiente : dep.saldoTotal;
+
+          if (montoPagado > saldoAnterior) {
+            newWarnings.push(`Fila ${index + 2}: El monto a pagar (${montoPagado}) supera el saldo pendiente del acreedor ${dep.nombreAcreedor} (${saldoAnterior}). Se omitió.`);
             return;
           }
 
@@ -82,8 +89,6 @@ export default function DevolucionAcreencias({
             fase: "Fase 1: COSEDE",
             monto: montoPagado,
           };
-
-          const saldoAnterior = dep.saldoPendiente !== undefined ? dep.saldoPendiente : dep.saldoTotal;
           
           updatedDepositos[depIndex] = {
             ...dep,
@@ -96,6 +101,7 @@ export default function DevolucionAcreencias({
 
         if (newErrors.length > 0) {
           setErrorLogs(newErrors);
+          setWarningLogs([]);
           setSuccessMessage("");
         } else {
           setDepositos(updatedDepositos);
@@ -104,10 +110,12 @@ export default function DevolucionAcreencias({
             contingenteCosede: (prev.contingenteCosede || 0) + totalSubrogadoCosede,
           }));
           setErrorLogs([]);
-          setSuccessMessage(`Fase 1 completada con éxito. Se actualizó el saldo de depositantes y la subrogación de COSEDE sumó $${totalSubrogadoCosede.toFixed(2)}.`);
+          setWarningLogs(newWarnings);
+          setSuccessMessage(`Fase 1 completada con éxito. Se procesaron los pagos válidos. Subrogación de COSEDE sumó $${totalSubrogadoCosede.toFixed(2)}.`);
         }
       } catch (err) {
         setErrorLogs(["Error al procesar el archivo Excel. Asegúrate de que tiene las columnas 'IDENTIFICACION' y 'DEPOSITOS CUBIERTOS'."]);
+        setWarningLogs([]);
       }
     };
     reader.readAsBinaryString(file);
@@ -164,6 +172,7 @@ export default function DevolucionAcreencias({
 
     setDepositos(updatedDepositos);
     setErrorLogs([]);
+    setWarningLogs([]);
     setSuccessMessage(`Pago Fase 2 (GAP) realizado. Total distribuido: $${totalPagado.toFixed(2)} a prorrata (${(factorProrrata * 100).toFixed(2)}%).`);
     setMontoDisponibleGap(0);
   };
@@ -235,6 +244,7 @@ export default function DevolucionAcreencias({
     }));
     
     setErrorLogs([]);
+    setWarningLogs([]);
     setSuccessMessage(`Fase 3 ejecutada. Pago a Depositantes: $${totalDepositantesPagado.toFixed(2)}. Pago a COSEDE: $${pagoCosede.toFixed(2)}.`);
     setRecursosDisponibles(0);
     setGastosOperacion(0);
@@ -249,10 +259,21 @@ export default function DevolucionAcreencias({
 
       {errorLogs.length > 0 && (
         <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-r-xl">
-          <h4 className="text-red-800 font-bold text-sm mb-2">Errores / Alertas:</h4>
+          <h4 className="text-red-800 font-bold text-sm mb-2">Errores Críticos:</h4>
           <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
             {errorLogs.map((err, i) => (
               <li key={i}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {warningLogs.length > 0 && (
+        <div className="p-4 bg-amber-50 border-l-4 border-amber-500 rounded-r-xl">
+          <h4 className="text-amber-800 font-bold text-sm mb-2">Alertas / Filas Omitidas:</h4>
+          <ul className="list-disc list-inside text-sm text-amber-700 space-y-1 max-h-48 overflow-y-auto">
+            {warningLogs.map((warn, i) => (
+              <li key={i}>{warn}</li>
             ))}
           </ul>
         </div>
@@ -268,7 +289,7 @@ export default function DevolucionAcreencias({
         {[1, 2, 3].map((fase) => (
           <button
             key={fase}
-            onClick={() => { setActiveFase(fase); setErrorLogs([]); setSuccessMessage(""); }}
+            onClick={() => { setActiveFase(fase); setErrorLogs([]); setWarningLogs([]); setSuccessMessage(""); }}
             className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 -mb-[1px] ${
               activeFase === fase ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
@@ -283,14 +304,28 @@ export default function DevolucionAcreencias({
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-slate-800">Fase 1: Seguro de Depósitos (COSEDE)</h3>
             <p className="text-sm text-slate-600">Suba el archivo Excel con los pagos realizados por el Seguro de Depósitos. <strong>Columnas obligatorias:</strong> IDENTIFICACION y DEPOSITOS CUBIERTOS.</p>
-            <div className="mt-4 p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 text-center hover:bg-slate-100 transition-colors">
-              <input type="file" accept=".xlsx,.xls" id="cosede-upload" className="hidden" onChange={handleUploadCosede} />
-              <label htmlFor="cosede-upload" className="cursor-pointer flex flex-col items-center">
-                <svg className="w-8 h-8 text-blue-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                <span className="text-sm font-semibold text-slate-700">Subir Plantilla Pagos COSEDE</span>
-                <span className="text-xs text-slate-400 mt-1">.xlsx, .xls</span>
-              </label>
+            
+            <div className="flex flex-col sm:flex-row items-center gap-4 mt-4">
+              <div className="w-full sm:w-1/3">
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Fecha de este Pago</label>
+                <input
+                  type="date"
+                  value={fechaPagoCosede}
+                  onChange={(e) => setFechaPagoCosede(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="w-full sm:w-2/3 p-4 sm:p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 text-center hover:bg-slate-100 transition-colors">
+                <input type="file" accept=".xlsx,.xls" id="cosede-upload" className="hidden" onChange={handleUploadCosede} />
+                <label htmlFor="cosede-upload" className="cursor-pointer flex flex-col items-center">
+                  <svg className="w-8 h-8 text-blue-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                  <span className="text-sm font-semibold text-slate-700">Subir Plantilla Pagos COSEDE</span>
+                  <span className="text-xs text-slate-400 mt-1">.xlsx, .xls</span>
+                </label>
+              </div>
             </div>
+
             <div className="mt-6 bg-blue-50 p-4 rounded-xl border border-blue-100 flex justify-between items-center">
               <span className="text-sm font-bold text-blue-800">Contingente COSEDE Actual:</span>
               <span className="text-xl font-black text-blue-900">${(inicioData.contingenteCosede || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
