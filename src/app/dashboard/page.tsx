@@ -587,15 +587,25 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-50 flex text-slate-800 font-sans">
       {/* Sidebar Navigation */}
       <aside className="w-66 bg-slate-900 text-slate-100 flex flex-col border-r border-slate-800 shadow-xl">
-        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <div className="bg-gradient-to-tr from-blue-600 to-emerald-500 p-2.5 rounded-xl text-white shadow-md shadow-blue-500/20">
+        <div className="p-6 border-b border-slate-800 flex flex-col sm:flex-row items-center gap-3">
+          <img 
+            src="/logo-seps.png" 
+            alt="SEPS Logo" 
+            className="w-12 h-12 object-contain bg-white rounded-lg p-1 shadow-md shadow-blue-500/10"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+          {/* Fallback icon just in case the image isn't loaded yet */}
+          <div className="hidden bg-gradient-to-tr from-blue-600 to-emerald-500 p-2.5 rounded-xl text-white shadow-md shadow-blue-500/20">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div>
-            <h1 className="font-bold text-sm leading-none tracking-tight">COSEDE APP</h1>
-            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Multi-cooperativa</span>
+            <h1 className="font-bold text-sm leading-none tracking-tight">ESTRUCTURAS ON LINE</h1>
+            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">DNLESF</span>
           </div>
         </div>
 
@@ -713,7 +723,15 @@ export default function DashboardPage() {
               COOP
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold leading-none text-slate-200 truncate">{inicioData.nombreLiquidador.split(" ")[0] || "Liquidador"}</p>
+              <p className="text-xs font-bold leading-none text-slate-200 truncate">
+                {(() => {
+                  const parts = (inicioData.nombreLiquidador || "Liquidador").trim().split(/\s+/);
+                  if (parts.length > 1) {
+                    return `${parts[0].charAt(0)}${parts[parts.length - 1]}`.toUpperCase();
+                  }
+                  return parts[0].toUpperCase();
+                })()}
+              </p>
               <span className="text-[10px] text-slate-500 font-mono truncate block">RUC: {inicioData.rucCooperativa}</span>
             </div>
           </div>
