@@ -31,10 +31,10 @@ export default function LoginPage() {
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const success = login(usuario, clave);
+    const success = await login(usuario, clave);
     if (success) {
       router.push("/dashboard");
     } else {

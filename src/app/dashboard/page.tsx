@@ -10,6 +10,12 @@ import InicioForm, { InicioData } from "../../components/forms/InicioForm";
 import DepositoForm, { DepositoData } from "../../components/forms/DepositoForm";
 import CarteraForm, { CarteraData } from "../../components/forms/CarteraForm";
 import * as XLSX from "xlsx";
+import { 
+  saveBien, deleteBien,
+  saveDeposito, deleteDeposito,
+  saveCartera, deleteCartera,
+  updateEntidadLiquidadora
+} from "../actions/db-actions";
 
 // Initial Mock Assets (BIENES)
 const INITIAL_BIENES: BienData[] = [
@@ -189,56 +195,22 @@ export default function DashboardPage() {
     }
   }, [user, authLoading, router]);
 
-  // Load data from localStorage on mount
+  // Load data from DB on mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedBienes = localStorage.getItem("cosede_bienes");
-      if (savedBienes) setBienes(JSON.parse(savedBienes));
-
-      const savedDepositos = localStorage.getItem("cosede_depositos");
-      if (savedDepositos) setDepositos(JSON.parse(savedDepositos));
-
-      const savedCartera = localStorage.getItem("cosede_cartera");
-      if (savedCartera) setCartera(JSON.parse(savedCartera));
-
-      const savedBalances = localStorage.getItem("cosede_balances");
-      if (savedBalances) setBalances(JSON.parse(savedBalances));
-
-      const savedInicio = localStorage.getItem("cosede_inicio_data");
-      if (savedInicio) setInicioData(JSON.parse(savedInicio));
+    if (user && user.ruc) {
+      import("../actions/db-actions").then(({ getEntidadLiquidadora }) => {
+        getEntidadLiquidadora(user.ruc).then((entidad) => {
+          if (entidad) {
+            setInicioData(entidad as unknown as InicioData);
+            if (entidad.bienes) setBienes(entidad.bienes as unknown as BienData[]);
+            if (entidad.depositos) setDepositos(entidad.depositos as unknown as DepositoData[]);
+            if (entidad.carteras) setCartera(entidad.carteras as unknown as CarteraData[]);
+            if (entidad.balances) setBalances(entidad.balances as unknown as BalanceItem[]);
+          }
+        });
+      });
     }
-  }, []);
-
-  // Save changes to localStorage on state modifications
-  useEffect(() => {
-    if (bienes.length > 0) {
-      localStorage.setItem("cosede_bienes", JSON.stringify(bienes));
-    }
-  }, [bienes]);
-
-  useEffect(() => {
-    if (depositos.length > 0) {
-      localStorage.setItem("cosede_depositos", JSON.stringify(depositos));
-    }
-  }, [depositos]);
-
-  useEffect(() => {
-    if (cartera.length > 0) {
-      localStorage.setItem("cosede_cartera", JSON.stringify(cartera));
-    }
-  }, [cartera]);
-
-  useEffect(() => {
-    if (balances.length > 0) {
-      localStorage.setItem("cosede_balances", JSON.stringify(balances));
-    }
-  }, [balances]);
-
-  useEffect(() => {
-    if (inicioData.rucCooperativa !== "") {
-      localStorage.setItem("cosede_inicio_data", JSON.stringify(inicioData));
-    }
-  }, [inicioData]);
+  }, [user]);
 
   // Bienes states
   const [showAddBien, setShowAddBien] = useState(false);
@@ -300,53 +272,71 @@ export default function DashboardPage() {
   const totalActivosLibros = balances.find((b) => b.codigoCuenta === "1")?.saldoInicial || 0;
 
   // Bien CRUD
-  const handleAddBien = (newBien: BienData) => {
-    setBienes((prev) => [...prev, { ...newBien, id: prev.length + 1 }]);
+  const handleAddBien = async (newBien: BienData) => {
+    if (!inicioData.id) return;
+    const saved = await saveBien(inicioData.id, newBien);
+    setBienes((prev) => [...prev, saved as unknown as BienData]);
     setShowAddBien(false);
   };
-  const handleEditBien = (updatedBien: BienData) => {
-    setBienes((prev) => prev.map((b) => (b.id === editingBien?.id ? { ...updatedBien, id: b.id } : b)));
+  const handleEditBien = async (updatedBien: BienData) => {
+    if (!inicioData.id) return;
+    const saved = await saveBien(inicioData.id, updatedBien);
+    setBienes((prev) => prev.map((b) => (b.id === editingBien?.id ? (saved as unknown as BienData) : b)));
     setEditingBien(null);
   };
-  const handleDeleteBien = (id: number) => {
+  const handleDeleteBien = async (id: number) => {
     if (confirm("¿Está seguro de eliminar este registro de bien realizable?")) {
+      await deleteBien(id);
       setBienes((prev) => prev.filter((b) => b.id !== id));
     }
   };
 
   // Deposito CRUD
-  const handleAddDeposito = (newDep: DepositoData) => {
-    setDepositos((prev) => [...prev, { ...newDep, id: prev.length + 1 }]);
+  const handleAddDeposito = async (newDep: DepositoData) => {
+    if (!inicioData.id) return;
+    const saved = await saveDeposito(inicioData.id, newDep);
+    setDepositos((prev) => [...prev, saved as unknown as DepositoData]);
     setShowAddDeposito(false);
   };
-  const handleEditDeposito = (updatedDep: DepositoData) => {
-    setDepositos((prev) => prev.map((d) => (d.id === editingDeposito?.id ? { ...updatedDep, id: d.id } : d)));
+  const handleEditDeposito = async (updatedDep: DepositoData) => {
+    if (!inicioData.id) return;
+    const saved = await saveDeposito(inicioData.id, updatedDep);
+    setDepositos((prev) => prev.map((d) => (d.id === editingDeposito?.id ? (saved as unknown as DepositoData) : d)));
     setEditingDeposito(null);
   };
-  const handleDeleteDeposito = (id: number) => {
+  const handleDeleteDeposito = async (id: number) => {
     if (confirm("¿Está seguro de eliminar este registro de depósito?")) {
+      await deleteDeposito(id);
       setDepositos((prev) => prev.filter((d) => d.id !== id));
     }
   };
 
   // Cartera CRUD
-  const handleAddCartera = (newCart: CarteraData) => {
-    setCartera((prev) => [...prev, { ...newCart, id: prev.length + 1 }]);
+  const handleAddCartera = async (newCart: CarteraData) => {
+    if (!inicioData.id) return;
+    const saved = await saveCartera(inicioData.id, newCart);
+    setCartera((prev) => [...prev, saved as unknown as CarteraData]);
     setShowAddCartera(false);
   };
-  const handleEditCartera = (updatedCart: CarteraData) => {
-    setCartera((prev) => prev.map((c) => (c.id === editingCartera?.id ? { ...updatedCart, id: c.id } : c)));
+  const handleEditCartera = async (updatedCart: CarteraData) => {
+    if (!inicioData.id) return;
+    const saved = await saveCartera(inicioData.id, updatedCart);
+    setCartera((prev) => prev.map((c) => (c.id === editingCartera?.id ? (saved as unknown as CarteraData) : c)));
     setEditingCartera(null);
   };
-  const handleDeleteCartera = (id: number) => {
+  const handleDeleteCartera = async (id: number) => {
     if (confirm("¿Está seguro de eliminar esta operación de cartera?")) {
+      await deleteCartera(id);
       setCartera((prev) => prev.filter((c) => c.id !== id));
     }
   };
 
-  const handleInicioSubmit = (data: InicioData) => {
+  const handleInicioSubmit = async (data: InicioData) => {
+    if (data.id) {
+      await updateEntidadLiquidadora(data.id, data);
+    }
     setInicioData(data);
-    alert("Datos de INICIO guardados y modificados en el estado de sesión actual.");
+    alert("Datos de INICIO guardados exitosamente en la base de datos.");
   };
 
   const handleLogout = () => {
@@ -764,23 +754,6 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-400">Fecha Corte Operativo</p>
               <p className="text-sm font-bold text-slate-700">{inicioData.fechaCorte}</p>
             </div>
-            <button
-              onClick={() => {
-                localStorage.setItem("cosede_bienes", JSON.stringify(bienes));
-                localStorage.setItem("cosede_depositos", JSON.stringify(depositos));
-                localStorage.setItem("cosede_cartera", JSON.stringify(cartera));
-                localStorage.setItem("cosede_balances", JSON.stringify(balances));
-                localStorage.setItem("cosede_inicio_data", JSON.stringify(inicioData));
-                alert("✓ Cambios guardados permanentemente.");
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold text-xs uppercase tracking-wider transition-all duration-200 active:scale-95 shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
-              Guardar Cambios
-            </button>
-            <div className="border-l border-slate-200 h-8"></div>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-xs uppercase tracking-wider transition-all duration-200 active:scale-95 shadow-sm shadow-red-500/5"

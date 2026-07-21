@@ -4,8 +4,8 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { Cooperativa } from "../data/cooperativas";
 
 interface AuthContextType {
-  user: Cooperativa | null;
-  login: (usuario: string, clave: string) => boolean;
+  user: any | null;
+  login: (usuario: string, clave: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
 }
@@ -13,7 +13,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<Cooperativa | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,19 +29,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = (usuario: string, clave: string): boolean => {
-    // Import dynamically to avoid SSR/compilation order issues if any
-    const { COOPERATIVAS_MAESTRA } = require("../data/cooperativas");
-    const found = COOPERATIVAS_MAESTRA.find(
-      (coop: Cooperativa) => coop.usuario === usuario && coop.clave === clave
-    );
-
-    if (found) {
-      setUser(found);
-      localStorage.setItem("cosede_session", JSON.stringify(found));
-      return true;
+  const login = async (usuario: string, clave: string): Promise<boolean> => {
+    try {
+      const { verifyLogin } = await import("../app/actions/db-actions");
+      const found = await verifyLogin(usuario, clave);
+      
+      if (found) {
+        setUser(found);
+        localStorage.setItem("cosede_session", JSON.stringify(found));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Login failed", error);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 export interface InicioData {
+  id?: number;
   rucCooperativa: string;
   razonSocial: string;
   tipoIdLiquidador: string;
